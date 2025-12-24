@@ -6,6 +6,7 @@ import config from "./config";
 
 // scenes
 import { Game } from "./scenes/Game";
+import { Settings } from "./scenes/Settings";
 import { Boot } from "./scenes/internal/Boot";
 import { Load } from "./scenes/internal/Load";
 import { Debug } from "./scenes/overlay/Debug";
@@ -20,6 +21,7 @@ new Phaser.Game(
 			Load,
 			Head,
 			Game,
+			Settings,
 			Debug,
 		],
 	})

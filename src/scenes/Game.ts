@@ -56,6 +56,12 @@ export class Game extends Core {
 	}
 
 	async create() {
+		// Screen setup
+		this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+			.on('down', () => {
+				this.scene.start('Settings');
+			});
+
 		await this.loadSaveData();
 		// add background at the center of the canvas
 		const background = this.add.image(this.game.scale.width / 2, this.game.scale.height / 2, 'background_space');
