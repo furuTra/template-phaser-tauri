@@ -1,3 +1,6 @@
+// logs
+import { info, error, warn, debug } from '@tauri-apps/plugin-log';
+
 // imports
 import store from "storejs";
 
@@ -7,6 +10,9 @@ import { sceneData } from "../types/global";
 // internal
 import { Core } from "./internal/Core";
 
+// database
+import { getAllSaves, SaveData } from "../lib/database";
+
 export class Game extends Core {
 	// input
 	keySHIFT!: Phaser.Input.Keyboard.Key;
@@ -14,6 +20,9 @@ export class Game extends Core {
 	constructor() {
 		super({ key: "Game" });
 	}
+
+	currentSaveId: number | null = null;
+	saves: SaveData[] = [];
 
 	init(data: sceneData) {
 		// save scene references
@@ -28,7 +37,26 @@ export class Game extends Core {
 		this.debugSetup();
 	}
 
-	create() {
+	// セーブデータを読み込み
+	async loadSaveData(): Promise<void> {
+		try {
+			this.saves = await getAllSaves();
+			console.log('Loaded saves:', this.saves);
+			info('Loaded saves:' + JSON.stringify(this.saves));
+
+			// 最新のセーブデータがあれば読み込む
+			if (this.saves.length > 0) {
+				const latestSave = this.saves[0];
+				this.currentSaveId = latestSave.id;
+			}
+		} catch (err) {
+			console.error('Failed to load save data:', err);
+			error('Failed to load save data:' + String(err));
+		}
+	}
+
+	async create() {
+		await this.loadSaveData();
 		// add background at the center of the canvas
 		const background = this.add.image(this.game.scale.width / 2, this.game.scale.height / 2, 'background_space');
 
@@ -55,7 +83,7 @@ export class Game extends Core {
 		particles.startFollow(logo);
 	}
 
-	update() {}
+	update() { }
 
 	debugSetup() {
 		// debug overlay toggle hotkey
