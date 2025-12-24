@@ -62,15 +62,3 @@ It also includes [StoreJS](https://www.npmjs.com/package/storejs), which is an a
 ### **Credits**
 
 Assets are pulled from [https://labs.phaser.io](https://labs.phaser.io). 
-
-<hr>
-
-<p align="center" style="display: flex; justify-content: center;">
-  If this helped you out, consider helping&nbsp;<i>me</i>&nbsp;out. :)
-</p>
-
-<p align="center" style="display: flex; justify-content: center;">
-  <a href="https://www.paypal.com/paypalme/DanMizu" target="_blank" style="padding: 1%">
-    <img height="40rem" src="paypal-donate-button.webp" alt="Donations"/>
-  </a>
-</p>
