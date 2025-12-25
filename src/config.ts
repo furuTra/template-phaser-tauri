@@ -9,8 +9,8 @@ import ColorScheme from "./scripts/utility/ColorScheme";
 
 // constants
 const gameScale = {
-	width: 1920,
-	height: 1080,
+	width: 1280,
+	height: 720,
 };
 
 export default {
@@ -30,12 +30,15 @@ export default {
 		forceSetTimeOut: true,
 	},
 	physics: {
-        default: 'arcade',
-        arcade: {
+		default: 'arcade',
+		arcade: {
 			debug: true,
-            gravity: { y: 200 }
-        }
-    },
+			gravity: { y: 200 }
+		}
+	},
+	render: {
+		powerPreference: 'low-power',  // 省電力GPU優先
+	},
 	dom: {
 		createContainer: true,
 	},

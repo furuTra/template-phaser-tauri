@@ -5,9 +5,11 @@ import {
   loadWindowSettings,
   WindowSettings
 } from '../lib/windowSettings';
+import { Button } from '../components/ui/Button';
 
 export class Settings extends Phaser.Scene {
   private currentSettings!: WindowSettings;
+  private fullscreenButton!: Button;
 
   private readonly resolutions = [
     { label: '1280 x 720', width: 1280, height: 720 },
@@ -33,37 +35,41 @@ export class Settings extends Phaser.Scene {
         this.currentSettings.width === res.width &&
         this.currentSettings.height === res.height;
 
-      const button = this.add.text(120, y, res.label, {
-        fontSize: '20px',
+      // 解像度ボタン
+      new Button(this, {
+        x: 150,
+        y: y,
+        text: res.label,
         color: isSelected ? '#00ff00' : '#ffffff',
         backgroundColor: '#333333',
+        hoverColor: '#777777',
         padding: { x: 10, y: 5 },
-      })
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => this.selectResolution(res.width, res.height));
+        onClick: () => this.selectResolution(res.width, res.height),
+      });
     });
 
     // フルスクリーン切り替え
     const fullscreenY = 160 + this.resolutions.length * 40 + 30;
-    const fullscreenButton = this.add.text(100, fullscreenY,
-      `Fullscreen: ${this.currentSettings.fullscreen ? 'ON' : 'OFF'}`, {
-      fontSize: '20px',
-      color: '#ffffff',
+    this.fullscreenButton = new Button(this, {
+      x: 150,
+      y: fullscreenY,
+      text: this.getFullscreenText(),
       backgroundColor: '#333333',
+      hoverColor: '#777777',
       padding: { x: 10, y: 5 },
-    })
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.toggleFullscreen(fullscreenButton));
+      onClick: () => this.toggleFullscreen(),
+    });
 
     // 戻るボタン
-    this.add.text(100, fullscreenY + 60, '← Back to Game', {
-      fontSize: '20px',
-      color: '#ffffff',
-      backgroundColor: '#555555',
+    new Button(this, {
+      x: 150,
+      y: fullscreenY + 60,
+      text: '← Back to Game',
+      backgroundColor: '#333333',
+      hoverColor: '#777777',
       padding: { x: 10, y: 5 },
-    })
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.scene.start('Game'));
+      onClick: () => this.scene.start('Game'),
+    });
   }
 
   async selectResolution(width: number, height: number) {
@@ -77,11 +83,15 @@ export class Settings extends Phaser.Scene {
     this.scene.restart();
   }
 
-  async toggleFullscreen(button: Phaser.GameObjects.Text) {
+  private async toggleFullscreen() {
     this.currentSettings.fullscreen = !this.currentSettings.fullscreen;
 
     await setFullscreen(this.currentSettings.fullscreen);
 
-    button.setText(`Fullscreen: ${this.currentSettings.fullscreen ? 'ON' : 'OFF'}`);
+    this.fullscreenButton.setText(this.getFullscreenText());
+  }
+
+  private getFullscreenText(): string {
+    return `Fullscreen: ${this.currentSettings.fullscreen ? 'ON' : 'OFF'}`;
   }
 }

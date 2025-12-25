@@ -74,7 +74,10 @@ export class Game extends Core {
 		const particles = this.add.particles(0, 0, 'particle_red', {
 			speed: 100,
 			scale: { start: background.scaleX, end: 0 },
-			blendMode: 'ADD'
+			blendMode: 'ADD',
+			maxParticles: 50,
+			lifespan: 1000,
+			frequency: 50,
 		});
 
 		// add phaser 3 logo to the center of the canvas
