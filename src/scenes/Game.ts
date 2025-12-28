@@ -1,5 +1,5 @@
 // logs
-import { info, error, warn, debug } from '@tauri-apps/plugin-log';
+import { info, error, warn } from '@tauri-apps/plugin-log';
 
 // imports
 import store from "storejs";
@@ -11,7 +11,12 @@ import { sceneData } from "../types/global";
 import { Core } from "./internal/Core";
 
 // database
-import { getAllSaves, SaveData } from "../lib/database";
+import {
+	getAllSaves,
+	SaveData,
+	GameData,
+	parseGameData,
+} from "../lib/database";
 
 export class Game extends Core {
 	// input
@@ -23,6 +28,7 @@ export class Game extends Core {
 
 	currentSaveId: number | null = null;
 	saves: SaveData[] = [];
+	gameData: GameData | null = null;
 
 	init(data: sceneData) {
 		// save scene references
@@ -56,16 +62,20 @@ export class Game extends Core {
 	}
 
 	async create() {
-		// Screen setup
-		this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
-			.on('down', () => {
-				this.scene.start('Settings');
-			});
+		this.setupInput();
 
 		await this.loadSaveData();
-		// add background at the center of the canvas
-		const background = this.add.image(this.game.scale.width / 2, this.game.scale.height / 2, 'background_space');
+		this.createBackground();
+		this.createUI();
+	}
 
+	private createBackground() {
+		// add background at the center of the canvas
+		const background = this.add.image(
+			this.game.scale.width / 2,
+			this.game.scale.height / 2,
+			'background_space'
+		);
 		// scale background to game size
 		background.displayWidth = this.game.scale.width;
 		background.scaleY = background.scaleX;
@@ -90,6 +100,73 @@ export class Game extends Core {
 
 		// make particles follow logo
 		particles.startFollow(logo);
+	}
+
+	private createUI() {
+		// 操作説明
+		this.add.text(20, 20, 'ESC: Settings / SHIFT: Debug', {
+			fontSize: '16px',
+			color: '#ffffff',
+		});
+
+		// 現在のゲームデータを表示
+		if (this.gameData) {
+			this.add.text(20, 50, `Level: ${this.gameData.level}`, {
+				fontSize: '20px',
+				color: '#ffffff',
+			});
+			this.add.text(20, 80, `Score: ${this.gameData.score}`, {
+				fontSize: '20px',
+				color: '#ffffff',
+			});
+		}
+
+		// セーブデータ一覧を表示
+		this.displaySaveList();
+	}
+
+	private displaySaveList() {
+		const startX = 20;
+		const startY = 130;
+
+		this.add.text(startX, startY, 'Save Data:', {
+			fontSize: '18px',
+			color: '#ffff00',
+		});
+
+		if (this.saves.length === 0) {
+			warn('No save data found');
+			this.add.text(startX, startY + 30, 'No save data found', {
+				fontSize: '14px',
+				color: '#888888',
+			});
+			return;
+		}
+
+		this.saves.forEach((save, index) => {
+			const y = startY + 30 + index * 50;
+			const data = parseGameData(save);
+
+			// タイトル
+			this.add.text(startX, y, save.title, {
+				fontSize: '16px',
+				color: '#ffffff',
+			});
+
+			// ゲームデータ
+			this.add.text(startX + 20, y + 20, `Lv.${data.level} | Score: ${data.score}`, {
+				fontSize: '14px',
+				color: '#aaaaaa',
+			});
+		});
+	}
+
+	private setupInput() {
+		// Screen setup
+		this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+			.on('down', () => {
+				this.scene.start('Settings');
+			});
 	}
 
 	update() { }

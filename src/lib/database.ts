@@ -10,6 +10,12 @@ export interface SaveData {
   updated_at: string;
 }
 
+export interface GameData {
+  level: number;
+  score: number;
+  playTime: number;
+}
+
 // DB接続（シングルトン）
 let db: Database | null = null;
 let dbPath: string | null = null;
@@ -29,4 +35,28 @@ export async function getDatabase(): Promise<Database> {
 export async function getAllSaves(): Promise<SaveData[]> {
   const database = await getDatabase();
   return await database.select<SaveData[]>('SELECT * FROM saves ORDER BY updated_at DESC');
+}
+
+// セーブデータ取得（ID指定）
+export async function getSaveById(id: number): Promise<SaveData | null> {
+  const database = await getDatabase();
+  const results = await database.select<SaveData[]>(
+    'SELECT * FROM saves WHERE id = $1',
+    [id]
+  );
+  return results[0] ?? null;
+}
+
+// JSON を GameData にパース
+export function parseGameData(save: SaveData): GameData {
+  return JSON.parse(save.data) as GameData;
+}
+
+// デフォルトのゲームデータ
+export function getDefaultGameData(): GameData {
+  return {
+    level: 1,
+    score: 0,
+    playTime: 0,
+  };
 }
