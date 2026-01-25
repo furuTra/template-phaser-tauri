@@ -1,18 +1,18 @@
 import Phaser from 'phaser';
 import { SaveSlot } from '../../components/ui/SaveSlot';
-import { getAllSaves, SaveData } from '../../lib/database';
+import type { SaveData } from '../../lib/database';
+import { SaveDataManager } from '../../lib/cache/SaveDataManager';
 
 /**
  * セーブスロット選択画面のオーバーレイシーン
  * 複数のセーブスロットを表示し、選択・削除を行う
  */
 export class SaveSlotsOverlay extends Phaser.Scene {
-  private saves: SaveData[] = [];
+  private saveManager!: SaveDataManager;
   private slots: SaveSlot[] = [];
   private parentSceneKey: string = '';
 
   // スロット設定
-  private readonly MAX_SLOTS = 3;
   private readonly SLOT_WIDTH = 400;
   private readonly SLOT_HEIGHT = 80;
   private readonly SLOT_PADDING = 20;
@@ -26,13 +26,14 @@ export class SaveSlotsOverlay extends Phaser.Scene {
    */
   init(data: { parentSceneKey?: string }) {
     this.parentSceneKey = data.parentSceneKey || 'Game';
+    this.saveManager = SaveDataManager.getInstance();
   }
 
   async create(): Promise<void> {
     // 半透明の背景オーバーレイ
     this.createOverlayBackground();
 
-    // セーブデータ読み込み
+    // セーブデータ読み込み（Manager経由）
     await this.loadSaves();
 
     // UIを構築
@@ -47,6 +48,7 @@ export class SaveSlotsOverlay extends Phaser.Scene {
    */
   private createOverlayBackground(): void {
     const { width, height } = this.scale;
+    const maxSlots = this.saveManager.getMaxSlots();
 
     // 暗い半透明背景（クリック貫通を防止）
     this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
@@ -55,7 +57,7 @@ export class SaveSlotsOverlay extends Phaser.Scene {
 
     // ダイアログ背景
     const dialogWidth = this.SLOT_WIDTH + 80;
-    const dialogHeight = (this.SLOT_HEIGHT + this.SLOT_PADDING) * this.MAX_SLOTS + 120;
+    const dialogHeight = (this.SLOT_HEIGHT + this.SLOT_PADDING) * maxSlots + 120;
     const dialogX = (width - dialogWidth) / 2;
     const dialogY = (height - dialogHeight) / 2;
 
@@ -65,15 +67,14 @@ export class SaveSlotsOverlay extends Phaser.Scene {
   }
 
   /**
-   * セーブデータをDBから読み込み
+   * セーブデータをManager経由で読み込み
    */
   private async loadSaves(): Promise<void> {
     try {
-      this.saves = await getAllSaves();
-      console.log('SaveSlotsOverlay: Loaded saves:', this.saves);
+      await this.saveManager.load();
+      console.log('SaveSlotsOverlay: Loaded saves via Manager');
     } catch (err) {
       console.error('SaveSlotsOverlay: Failed to load saves:', err);
-      this.saves = [];
     }
   }
 
@@ -104,14 +105,18 @@ export class SaveSlotsOverlay extends Phaser.Scene {
     const { width, height } = this.scale;
     const startX = (width - this.SLOT_WIDTH) / 2;
     const startY = height / 2 - 100;
+    const maxSlots = this.saveManager.getMaxSlots();
 
     // 既存スロットをクリア
     this.slots.forEach(slot => slot.destroy());
     this.slots = [];
 
+    // Manager経由でスロットデータを取得
+    const slotData = this.saveManager.getSlots();
+
     // MAX_SLOTS分のスロットを作成
-    for (let i = 0; i < this.MAX_SLOTS; i++) {
-      const saveData = this.saves[i] || null;
+    for (let i = 0; i < maxSlots; i++) {
+      const saveData = slotData[i] || null;
       const y = startY + i * (this.SLOT_HEIGHT + this.SLOT_PADDING);
 
       const slot = new SaveSlot(this, {
@@ -162,10 +167,14 @@ export class SaveSlotsOverlay extends Phaser.Scene {
   private onSlotSelect(save: SaveData | null, slotIndex: number): void {
     console.log('Selected slot:', slotIndex, save);
 
+    // Manager経由でスロットを選択（ゲームデータをロード）
+    const gameData = this.saveManager.selectSlot(slotIndex);
+    console.log('Loaded game data:', gameData);
+
     // 親シーンにイベントを送信
     const parentScene = this.scene.get(this.parentSceneKey);
     if (parentScene) {
-      parentScene.events.emit('saveSlotSelected', { save, slotIndex });
+      parentScene.events.emit('saveSlotSelected', { save, slotIndex, gameData });
     }
 
     // オーバーレイを閉じる
@@ -178,12 +187,17 @@ export class SaveSlotsOverlay extends Phaser.Scene {
   private async onSlotDelete(save: SaveData): Promise<void> {
     console.log('Delete requested for save:', save.id);
 
-    // TODO: 削除確認ダイアログを表示
-    // TODO: DBから削除処理を実装
+    // 削除するスロットのインデックスを特定
+    const slotData = this.saveManager.getSlots();
+    const slotIndex = slotData.findIndex(s => s?.id === save.id);
 
-    // 削除後にスロットを再読み込み
-    await this.loadSaves();
-    this.createSlots();
+    if (slotIndex !== -1) {
+      // Manager経由で削除
+      await this.saveManager.deleteSlot(slotIndex);
+
+      // スロットを再描画
+      this.createSlots();
+    }
   }
 
   /**

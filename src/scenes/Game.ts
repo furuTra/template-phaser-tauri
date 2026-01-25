@@ -2,17 +2,21 @@
 import store from "storejs";
 
 // types
-import { sceneData } from "../types/global";
+import type { sceneData } from "../types/global";
+import type { SaveData, GameData } from "../lib/database";
 
 // internal
 import { Core } from "./internal/Core";
 
-// database
-import { SaveData } from "../lib/database";
+// manager
+import { SaveDataManager } from "../lib/cache/SaveDataManager";
 
 export class Game extends Core {
 	// input
 	keySHIFT!: Phaser.Input.Keyboard.Key;
+
+	// manager
+	private saveManager!: SaveDataManager;
 
 	constructor() {
 		super({ key: "Game" });
@@ -21,6 +25,9 @@ export class Game extends Core {
 	init(data: sceneData) {
 		// save scene references
 		super.init(data);
+
+		// SaveDataManager のインスタンスを取得
+		this.saveManager = SaveDataManager.getInstance();
 	}
 
 	preload() {
@@ -97,8 +104,13 @@ export class Game extends Core {
 	 */
 	private openSaveSlots(): void {
 		// セーブスロット選択のイベントリスナーを設定
-		this.events.once('saveSlotSelected', (data: { save: SaveData | null; slotIndex: number }) => {
+		this.events.once('saveSlotSelected', (data: { 
+			save: SaveData | null; 
+			slotIndex: number;
+			gameData: GameData;
+		}) => {
 			console.log('Save slot selected in Game:', data);
+			console.log('Current game data:', this.saveManager.getCurrentGameData());
 			// TODO: 選択されたスロットでゲームを開始/再開する処理
 		});
 
