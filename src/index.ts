@@ -10,6 +10,7 @@ import { Settings } from "./scenes/Settings";
 import { Boot } from "./scenes/internal/Boot";
 import { Load } from "./scenes/internal/Load";
 import { Debug } from "./scenes/overlay/Debug";
+import { SaveSlotsOverlay } from "./scenes/overlay/SaveSlotsOverlay";
 import { Head } from "./scenes/internal/Head";
 
 // Make sure to include all scenes here, keeping Boot at the top of the list.
@@ -23,6 +24,7 @@ new Phaser.Game(
 			Game,
 			Settings,
 			Debug,
+			SaveSlotsOverlay,
 		],
 	})
 );

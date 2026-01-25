@@ -1,6 +1,3 @@
-// logs
-import { info, error, warn } from '@tauri-apps/plugin-log';
-
 // imports
 import store from "storejs";
 
@@ -11,12 +8,7 @@ import { sceneData } from "../types/global";
 import { Core } from "./internal/Core";
 
 // database
-import {
-	getAllSaves,
-	SaveData,
-	GameData,
-	parseGameData,
-} from "../lib/database";
+import { SaveData } from "../lib/database";
 
 export class Game extends Core {
 	// input
@@ -25,10 +17,6 @@ export class Game extends Core {
 	constructor() {
 		super({ key: "Game" });
 	}
-
-	currentSaveId: number | null = null;
-	saves: SaveData[] = [];
-	gameData: GameData | null = null;
 
 	init(data: sceneData) {
 		// save scene references
@@ -43,28 +31,8 @@ export class Game extends Core {
 		this.debugSetup();
 	}
 
-	// セーブデータを読み込み
-	async loadSaveData(): Promise<void> {
-		try {
-			this.saves = await getAllSaves();
-			console.log('Loaded saves:', this.saves);
-			info('Loaded saves:' + JSON.stringify(this.saves));
-
-			// 最新のセーブデータがあれば読み込む
-			if (this.saves.length > 0) {
-				const latestSave = this.saves[0];
-				this.currentSaveId = latestSave.id;
-			}
-		} catch (err) {
-			console.error('Failed to load save data:', err);
-			error('Failed to load save data:' + String(err));
-		}
-	}
-
-	async create() {
+	create() {
 		this.setupInput();
-
-		await this.loadSaveData();
 		this.createBackground();
 		this.createUI();
 	}
@@ -104,60 +72,9 @@ export class Game extends Core {
 
 	private createUI() {
 		// 操作説明
-		this.add.text(20, 20, 'ESC: Settings / SHIFT: Debug', {
+		this.add.text(20, 20, 'ESC: Settings / SHIFT: Debug / S: Save Slots', {
 			fontSize: '16px',
 			color: '#ffffff',
-		});
-
-		// 現在のゲームデータを表示
-		if (this.gameData) {
-			this.add.text(20, 50, `Level: ${this.gameData.level}`, {
-				fontSize: '20px',
-				color: '#ffffff',
-			});
-			this.add.text(20, 80, `Score: ${this.gameData.score}`, {
-				fontSize: '20px',
-				color: '#ffffff',
-			});
-		}
-
-		// セーブデータ一覧を表示
-		this.displaySaveList();
-	}
-
-	private displaySaveList() {
-		const startX = 20;
-		const startY = 130;
-
-		this.add.text(startX, startY, 'Save Data:', {
-			fontSize: '18px',
-			color: '#ffff00',
-		});
-
-		if (this.saves.length === 0) {
-			warn('No save data found');
-			this.add.text(startX, startY + 30, 'No save data found', {
-				fontSize: '14px',
-				color: '#888888',
-			});
-			return;
-		}
-
-		this.saves.forEach((save, index) => {
-			const y = startY + 30 + index * 50;
-			const data = parseGameData(save);
-
-			// タイトル
-			this.add.text(startX, y, save.title, {
-				fontSize: '16px',
-				color: '#ffffff',
-			});
-
-			// ゲームデータ
-			this.add.text(startX + 20, y + 20, `Lv.${data.level} | Score: ${data.score}`, {
-				fontSize: '14px',
-				color: '#aaaaaa',
-			});
 		});
 	}
 
@@ -167,6 +84,26 @@ export class Game extends Core {
 			.on('down', () => {
 				this.scene.start('Settings');
 			});
+
+		// Sキーでセーブスロット画面を開く
+		this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S)
+			.on('down', () => {
+				this.openSaveSlots();
+			});
+	}
+
+	/**
+	 * セーブスロット選択画面を開く
+	 */
+	private openSaveSlots(): void {
+		// セーブスロット選択のイベントリスナーを設定
+		this.events.once('saveSlotSelected', (data: { save: SaveData | null; slotIndex: number }) => {
+			console.log('Save slot selected in Game:', data);
+			// TODO: 選択されたスロットでゲームを開始/再開する処理
+		});
+
+		// オーバーレイを起動
+		this.scene.launch('SaveSlotsOverlay', { parentSceneKey: 'Game' });
 	}
 
 	update() { }
