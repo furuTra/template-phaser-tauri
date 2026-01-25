@@ -28,6 +28,9 @@ export class SaveDataManager {
   // 変更追跡フラグ
   private isDirty: boolean = false;
 
+  // ロード済みフラグ
+  private isLoaded: boolean = false;
+
   // スロット数の上限
   private readonly MAX_SLOTS = 3;
 
@@ -48,9 +51,19 @@ export class SaveDataManager {
 
   /**
    * 初期化: DBからセーブデータをロードしてStoreに格納
+   * 既にロード済みの場合はキャッシュを返す（DBアクセスなし）
+   * @param force 強制的にDBから再読み込みする場合はtrue
    * @returns ロードしたスロットデータ
    */
-  async load(): Promise<(SaveData | null)[]> {
+  async load(force: boolean = false): Promise<(SaveData | null)[]> {
+    // 既にロード済みで、強制リロードでなければキャッシュを返す
+    if (this.isLoaded && !force) {
+      if (import.meta.env.DEV) {
+        console.log('[SaveDataManager] Using cached slots (skipping DB access)');
+      }
+      return this.slots;
+    }
+
     try {
       const saves = await getAllSaves();
 
@@ -63,9 +76,10 @@ export class SaveDataManager {
       });
 
       this.isDirty = false;
+      this.isLoaded = true;
 
       if (import.meta.env.DEV) {
-        console.log('[SaveDataManager] Loaded slots:', this.slots);
+        console.log('[SaveDataManager] Loaded slots from DB:', this.slots);
       }
 
       return this.slots;
@@ -73,6 +87,21 @@ export class SaveDataManager {
       console.error('[SaveDataManager] Load failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * 強制的にDBから再読み込み
+   * @returns ロードしたスロットデータ
+   */
+  async reload(): Promise<(SaveData | null)[]> {
+    return this.load(true);
+  }
+
+  /**
+   * ロード済みかどうかを取得
+   */
+  hasLoaded(): boolean {
+    return this.isLoaded;
   }
 
   /**
@@ -264,6 +293,7 @@ export class SaveDataManager {
     this.currentSlotIndex = null;
     this.currentGameData = null;
     this.isDirty = false;
+    this.isLoaded = false;
 
     if (import.meta.env.DEV) {
       console.log('[SaveDataManager] Store cleared');
@@ -285,12 +315,14 @@ export class SaveDataManager {
     currentSlotIndex: number | null;
     currentGameData: GameData | null;
     isDirty: boolean;
+    isLoaded: boolean;
   } {
     return {
       slots: this.slots,
       currentSlotIndex: this.currentSlotIndex,
       currentGameData: this.currentGameData,
       isDirty: this.isDirty,
+      isLoaded: this.isLoaded,
     };
   }
 }
