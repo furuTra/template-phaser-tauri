@@ -1,4 +1,14 @@
 {
+    "github.copilot.enable": {
+        "*.ts": true,
+        "*.tsx": true,
+        "yaml": true,
+        "markdown": true,
+        "plaintext": false
+    },
+    "chat.useAgentSkills": true,
+    "editor.inlineSuggest.enabled": true,
+    "files.eol": "\n",
     "cSpell.words": [
         "anims",
         "loaderror",
