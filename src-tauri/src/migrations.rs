@@ -9,3 +9,4 @@ pub fn get_migrations() -> Vec<Migration> {
         sql: include_str!("../migrations/20251221_init.sql"),
     }]
 }
+

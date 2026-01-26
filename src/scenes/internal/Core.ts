@@ -43,3 +43,4 @@ export class Core extends Phaser.Scene {
 		this.scene.start(scene, data);
 	}
 }
+

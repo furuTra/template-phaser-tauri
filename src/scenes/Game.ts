@@ -163,3 +163,4 @@ export class Game extends Core {
 		if (store.get("debug.enabled")) this.scene.launch("Debug", this);
 	}
 }
+

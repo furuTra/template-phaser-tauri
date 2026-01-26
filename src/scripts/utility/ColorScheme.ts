@@ -8,3 +8,4 @@ export default {
 	Green: 0x05ad32,
 	Red: 0xff0000,
 };
+

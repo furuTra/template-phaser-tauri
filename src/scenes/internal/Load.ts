@@ -112,3 +112,4 @@ export class Load extends Phaser.Scene {
 		this.scene.start("Head");
 	}
 }
+

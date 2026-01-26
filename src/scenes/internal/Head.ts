@@ -31,3 +31,4 @@ export class Head extends Phaser.Scene {
 		location.reload();
 	}
 }
+

@@ -62,3 +62,4 @@ It also includes [StoreJS](https://www.npmjs.com/package/storejs), which is an a
 ### **Credits**
 
 Assets are pulled from [https://labs.phaser.io](https://labs.phaser.io). 
+
