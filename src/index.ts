@@ -6,6 +6,7 @@ import config from "./config";
 
 // scenes
 import { Game } from "./scenes/Game";
+import { PlayScene } from "./scenes/PlayScene";
 import { Settings } from "./scenes/Settings";
 import { Boot } from "./scenes/internal/Boot";
 import { Load } from "./scenes/internal/Load";
@@ -22,6 +23,7 @@ new Phaser.Game(
 			Load,
 			Head,
 			Game,
+			PlayScene,
 			Settings,
 			Debug,
 			SaveSlotsOverlay,

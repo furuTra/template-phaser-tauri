@@ -33,7 +33,7 @@ export default {
 		default: 'arcade',
 		arcade: {
 			debug: true,
-			gravity: { y: 200 }
+			gravity: { x: 0, y: 0 }
 		}
 	},
 	render: {

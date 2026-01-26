@@ -79,10 +79,41 @@ export class Game extends Core {
 
 	private createUI() {
 		// 操作説明
-		this.add.text(20, 20, 'ESC: Settings / SHIFT: Debug / S: Save Slots', {
+		this.add.text(20, 20, 'ESC: Settings / SHIFT: Debug / S: セーブ選択', {
 			fontSize: '16px',
 			color: '#ffffff',
 		});
+
+		// タイトル
+		this.add.text(
+			this.game.scale.width / 2,
+			this.game.scale.height / 2 - 100,
+			'Example Game',
+			{
+				fontSize: '48px',
+				color: '#ffffff',
+				fontFamily: 'Roboto',
+			}
+		).setOrigin(0.5);
+
+		// ゲーム開始ボタン
+		const startBtn = this.add.text(
+			this.game.scale.width / 2,
+			this.game.scale.height / 2 + 50,
+			'ゲームを始める',
+			{
+				fontSize: '24px',
+				color: '#66ccff',
+				fontFamily: 'Roboto',
+				backgroundColor: '#222222',
+				padding: { x: 30, y: 15 },
+			}
+		)
+			.setOrigin(0.5)
+			.setInteractive({ useHandCursor: true })
+			.on('pointerover', () => startBtn.setColor('#99ddff'))
+			.on('pointerout', () => startBtn.setColor('#66ccff'))
+			.on('pointerdown', () => this.openSaveSlots());
 	}
 
 	private setupInput() {
@@ -111,7 +142,9 @@ export class Game extends Core {
 		}) => {
 			console.log('Save slot selected in Game:', data);
 			console.log('Current game data:', this.saveManager.getCurrentGameData());
-			// TODO: 選択されたスロットでゲームを開始/再開する処理
+
+			// 選択されたセーブデータでPlaySceneへ遷移
+			this.scene.start('PlayScene', { sceneHead: this.sceneHead });
 		});
 
 		// オーバーレイを起動
