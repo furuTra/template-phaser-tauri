@@ -39,7 +39,7 @@ export class SaveSlot extends Phaser.GameObjects.Container {
 
       // ゲームデータ
       const info = scene.add.text(10, 35,
-        `Level: ${gameData.level} | Score: ${gameData.score}`, {
+        `Lv: ${gameData.lv} | Exp: ${gameData.exp}`, {
         fontSize: '14px',
         color: '#aaaaaa',
       });

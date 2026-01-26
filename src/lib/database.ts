@@ -11,9 +11,8 @@ export interface SaveData {
 }
 
 export interface GameData {
-  level: number;
-  score: number;
-  playTime: number;
+  lv: number;
+  exp: number;
 }
 
 // DB接続（シングルトン）
@@ -55,8 +54,33 @@ export function parseGameData(save: SaveData): GameData {
 // デフォルトのゲームデータ
 export function getDefaultGameData(): GameData {
   return {
-    level: 1,
-    score: 0,
-    playTime: 0,
+    lv: 1,
+    exp: 0,
+  };
+}
+
+/**
+ * 新規セーブデータを作成
+ * @param title セーブデータのタイトル
+ * @param data ゲームデータ
+ * @returns 作成されたセーブデータ
+ */
+export async function createSave(title: string, data: GameData): Promise<SaveData> {
+  const database = await getDatabase();
+  const dataJson = JSON.stringify(data);
+  const now = new Date().toISOString();
+
+  const result = await database.execute(
+    'INSERT INTO saves (title, data, created_at, updated_at) VALUES ($1, $2, $3, $4)',
+    [title, dataJson, now, now]
+  );
+
+  // 作成したセーブデータを返す
+  return {
+    id: result.lastInsertId as number,
+    title,
+    data: dataJson,
+    created_at: now,
+    updated_at: now,
   };
 }

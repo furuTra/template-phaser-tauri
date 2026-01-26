@@ -12,6 +12,12 @@ export class SaveSlotsOverlay extends Phaser.Scene {
   private slots: SaveSlot[] = [];
   private parentSceneKey: string = '';
 
+  // 新規作成UI用
+  private createModeActive: boolean = false;
+  private inputElement: HTMLInputElement | null = null;
+  private createPanel: Phaser.GameObjects.Container | null = null;
+  private pendingSlotIndex: number = -1;
+
   // スロット設定
   private readonly SLOT_WIDTH = 400;
   private readonly SLOT_HEIGHT = 80;
@@ -140,7 +146,7 @@ export class SaveSlotsOverlay extends Phaser.Scene {
   private createCloseButton(): void {
     const { width, height } = this.scale;
 
-    const closeBtn = this.add.text(width / 2, height / 2 + 150, '閉じる (ESC)', {
+    const closeBtn = this.add.text(width / 2, height / 2 + 180, '閉じる (ESC)', {
       fontSize: '18px',
       color: '#aaaaaa',
       fontFamily: 'Roboto',
@@ -150,6 +156,177 @@ export class SaveSlotsOverlay extends Phaser.Scene {
       .on('pointerover', () => closeBtn.setColor('#ffffff'))
       .on('pointerout', () => closeBtn.setColor('#aaaaaa'))
       .on('pointerdown', () => this.closeOverlay());
+  }
+
+  /**
+   * 新規作成パネルを表示
+   * @param slotIndex 作成先のスロットインデックス
+   */
+  private showCreatePanel(slotIndex: number): void {
+    if (this.createModeActive) return;
+    this.createModeActive = true;
+    this.pendingSlotIndex = slotIndex;
+
+    const { width, height } = this.scale;
+
+    // 作成パネルのコンテナ
+    this.createPanel = this.add.container(width / 2, height / 2);
+
+    // パネル背景
+    const panelBg = this.add.rectangle(0, 0, 350, 180, 0x1a1a1a)
+      .setStrokeStyle(2, 0x66ccff);
+    this.createPanel.add(panelBg);
+
+    // タイトルラベル
+    const label = this.add.text(0, -60, '新規セーブ作成', {
+      fontSize: '22px',
+      color: '#ffffff',
+      fontFamily: 'Roboto',
+    }).setOrigin(0.5);
+    this.createPanel.add(label);
+
+    // 入力フィールドのプレースホルダーテキスト
+    const inputLabel = this.add.text(-140, -20, 'タイトル:', {
+      fontSize: '16px',
+      color: '#aaaaaa',
+      fontFamily: 'Roboto',
+    }).setOrigin(0, 0.5);
+    this.createPanel.add(inputLabel);
+
+    // HTML input要素を作成（Phaserでは直接テキスト入力が難しいため）
+    this.createInputElement();
+
+    // 作成ボタン
+    const createBtn = this.add.text(-60, 50, '作成', {
+      fontSize: '18px',
+      color: '#66ff66',
+      fontFamily: 'Roboto',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 8 },
+    })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerover', () => createBtn.setColor('#99ff99'))
+      .on('pointerout', () => createBtn.setColor('#66ff66'))
+      .on('pointerdown', () => this.confirmCreate());
+    this.createPanel.add(createBtn);
+
+    // キャンセルボタン
+    const cancelBtn = this.add.text(60, 50, 'キャンセル', {
+      fontSize: '18px',
+      color: '#ff6666',
+      fontFamily: 'Roboto',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 8 },
+    })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerover', () => cancelBtn.setColor('#ff9999'))
+      .on('pointerout', () => cancelBtn.setColor('#ff6666'))
+      .on('pointerdown', () => this.hideCreatePanel());
+    this.createPanel.add(cancelBtn);
+  }
+
+  /**
+   * HTML入力要素を作成
+   */
+  private createInputElement(): void {
+    // 既存の入力要素を削除
+    this.removeInputElement();
+
+    // canvas要素を取得
+    const canvas = this.game.canvas;
+    const canvasRect = canvas.getBoundingClientRect();
+
+    // 入力フィールドを作成
+    this.inputElement = document.createElement('input');
+    this.inputElement.type = 'text';
+    this.inputElement.placeholder = 'セーブデータのタイトルを入力';
+    this.inputElement.maxLength = 30;
+
+    // スタイル設定
+    Object.assign(this.inputElement.style, {
+      position: 'absolute',
+      left: `${canvasRect.left + canvasRect.width / 2 - 100}px`,
+      top: `${canvasRect.top + canvasRect.height / 2 - 15}px`,
+      width: '200px',
+      height: '30px',
+      fontSize: '14px',
+      padding: '5px 10px',
+      border: '1px solid #66ccff',
+      borderRadius: '4px',
+      backgroundColor: '#2a2a2a',
+      color: '#ffffff',
+      outline: 'none',
+      zIndex: '1000',
+    });
+
+    // Enterキーで作成
+    this.inputElement.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.confirmCreate();
+      } else if (e.key === 'Escape') {
+        this.hideCreatePanel();
+      }
+    });
+
+    document.body.appendChild(this.inputElement);
+    this.inputElement.focus();
+  }
+
+  /**
+   * HTML入力要素を削除
+   */
+  private removeInputElement(): void {
+    if (this.inputElement) {
+      this.inputElement.remove();
+      this.inputElement = null;
+    }
+  }
+
+  /**
+   * 新規作成を確定
+   */
+  private async confirmCreate(): Promise<void> {
+    const title = this.inputElement?.value.trim() || '';
+
+    if (!title) {
+      console.warn('タイトルが入力されていません');
+      return;
+    }
+
+    if (this.pendingSlotIndex < 0) {
+      console.error('Invalid slot index');
+      return;
+    }
+
+    try {
+      // 新規セーブを作成（指定スロットに）
+      const slotIndex = await this.saveManager.createSlotAt(this.pendingSlotIndex, title);
+      console.log('Created new save at slot:', slotIndex);
+
+      // パネルを閉じる
+      this.hideCreatePanel();
+
+      // スロットを再描画
+      this.createSlots();
+
+      // 新規作成ボタンを更新（空きがなくなった場合は非表示に）
+      this.scene.restart({ parentSceneKey: this.parentSceneKey });
+    } catch (error) {
+      console.error('Failed to create save:', error);
+    }
+  }
+
+  /**
+   * 新規作成パネルを非表示
+   */
+  private hideCreatePanel(): void {
+    this.removeInputElement();
+    this.createPanel?.destroy();
+    this.createPanel = null;
+    this.createModeActive = false;
+    this.pendingSlotIndex = -1;
   }
 
   /**
@@ -165,6 +342,12 @@ export class SaveSlotsOverlay extends Phaser.Scene {
    * スロット選択時のコールバック
    */
   private onSlotSelect(save: SaveData | null, slotIndex: number): void {
+    // 空スロットの場合は新規作成パネルを表示
+    if (!save) {
+      this.showCreatePanel(slotIndex);
+      return;
+    }
+
     console.log('Selected slot:', slotIndex, save);
 
     // Manager経由でスロットを選択（ゲームデータをロード）
@@ -204,6 +387,8 @@ export class SaveSlotsOverlay extends Phaser.Scene {
    * オーバーレイを閉じる
    */
   private closeOverlay(): void {
+    // HTML入力要素をクリーンアップ
+    this.removeInputElement();
     this.scene.stop();
   }
 }

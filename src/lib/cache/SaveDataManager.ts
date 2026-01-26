@@ -3,6 +3,7 @@ import {
   getAllSaves,
   parseGameData,
   getDefaultGameData,
+  createSave,
 } from '../database';
 
 /**
@@ -305,6 +306,86 @@ export class SaveDataManager {
    */
   getMaxSlots(): number {
     return this.MAX_SLOTS;
+  }
+
+  /**
+   * 空きスロットがあるかチェック
+   * @returns 空きスロットがあればtrue
+   */
+  hasEmptySlot(): boolean {
+    return this.slots.some(slot => slot === null);
+  }
+
+  /**
+   * 最初の空きスロットのインデックスを取得
+   * @returns 空きスロットのインデックス、なければ-1
+   */
+  getFirstEmptySlotIndex(): number {
+    return this.slots.findIndex(slot => slot === null);
+  }
+
+  /**
+   * 新規セーブを作成してスロットに格納
+   * @param title セーブデータのタイトル
+   * @param data 初期ゲームデータ（省略時はデフォルト）
+   * @returns 作成されたスロットインデックス
+   */
+  async createSlot(title: string, data?: GameData): Promise<number> {
+    const emptyIndex = this.getFirstEmptySlotIndex();
+    if (emptyIndex === -1) {
+      throw new Error('No empty slot available');
+    }
+
+    try {
+      const gameData = data || getDefaultGameData();
+      const newSave = await createSave(title, gameData);
+
+      // メモリ上のスロットに格納
+      this.slots[emptyIndex] = newSave;
+
+      if (import.meta.env.DEV) {
+        console.log('[SaveDataManager] Created new slot:', emptyIndex, newSave);
+      }
+
+      return emptyIndex;
+    } catch (error) {
+      console.error('[SaveDataManager] Create failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 指定スロットに新規セーブを作成
+   * @param index 作成先のスロットインデックス
+   * @param title セーブデータのタイトル
+   * @param data 初期ゲームデータ（省略時はデフォルト）
+   * @returns 作成されたスロットインデックス
+   */
+  async createSlotAt(index: number, title: string, data?: GameData): Promise<number> {
+    if (index < 0 || index >= this.MAX_SLOTS) {
+      throw new Error(`Invalid slot index: ${index}`);
+    }
+
+    if (this.slots[index] !== null) {
+      throw new Error(`Slot ${index} is not empty`);
+    }
+
+    try {
+      const gameData = data || getDefaultGameData();
+      const newSave = await createSave(title, gameData);
+
+      // メモリ上の指定スロットに格納
+      this.slots[index] = newSave;
+
+      if (import.meta.env.DEV) {
+        console.log('[SaveDataManager] Created new slot at:', index, newSave);
+      }
+
+      return index;
+    } catch (error) {
+      console.error('[SaveDataManager] Create at slot failed:', error);
+      throw error;
+    }
   }
 
   /**
