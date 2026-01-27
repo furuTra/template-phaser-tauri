@@ -1,75 +1,40 @@
-// imports
-import store from "storejs";
-
-// types
-import type { sceneData, StartPosition } from "../types/global";
-
 // internal
-import { Core } from "./internal/Core";
-
-// components
-import { TopDownController } from "../components/gameplay/TopDownController";
-
-// manager
-import { SaveDataManager } from "../lib/cache/SaveDataManager";
+import { PlayableScene, PlayableSceneConfig } from "./internal/PlayableScene";
 
 /**
- * プレイ画面シーン（トップダウンビュー）
+ * プレイ画面シーン1（トップダウンビュー）
  * WASD/カーソルキーでキャラクターを操作
  */
-export class PlayScene extends Core {
-  // Input
-  private keySHIFT!: Phaser.Input.Keyboard.Key;
-
-  // Player
-  private player!: Phaser.GameObjects.Rectangle;
-  private playerController!: TopDownController;
-
-  // Manager
-  private saveManager!: SaveDataManager;
-
-  // UI
-  private statusText!: Phaser.GameObjects.Text;
-
-  // シーン遷移時のプレイヤー開始位置
-  private startPosition: StartPosition = 'center';
+export class PlayScene extends PlayableScene {
+  // シーン設定
+  protected readonly config: PlayableSceneConfig = {
+    playerColor: 0x66ccff,
+    playerSpeed: 200,
+  };
 
   constructor() {
     super({ key: "PlayScene" });
-  }
-
-  init(data: sceneData) {
-    super.init(data);
-    this.saveManager = SaveDataManager.getInstance();
-    // 開始位置を設定（指定がなければ中央）
-    this.startPosition = data.startPosition ?? 'center';
-  }
-
-  preload() {
-    super.preload();
-    this.debugSetup();
   }
 
   create() {
     // 背景を作成
     this.createBackground();
 
-    // プレイヤーを作成
+    // プレイヤーを作成（StartPositionに基づく）
     this.createPlayer();
 
     // UIを作成
     this.createUI();
 
     // 入力を設定
-    this.setupInput();
+    this.setupCommonInput();
 
     // ステータスを更新
     this.updateStatusUI();
   }
 
   update() {
-    // プレイヤーの移動を更新
-    this.playerController.update();
+    super.update();
 
     // 画面右端に到達したらシーン遷移
     this.checkSceneTransition();
@@ -84,19 +49,9 @@ export class PlayScene extends Core {
 
     // プレイヤーが右端に到達したら（ワールド境界に接触）
     if (body.blocked.right || this.player.x >= width - body.halfWidth) {
-      this.transitionToNextScene();
+      // PlayScene2の左端にスポーン
+      this.transitionToScene('PlayScene2', 'left');
     }
-  }
-
-  /**
-   * 次のシーンへ遷移
-   */
-  private transitionToNextScene(): void {
-    // コントローラーを破棄
-    this.playerController.destroy();
-
-    // 次のシーンへ遷移（sceneDataを渡す）
-    this.scene.start('PlayScene2', { sceneHead: this.sceneHead });
   }
 
   /**
@@ -130,41 +85,6 @@ export class PlayScene extends Core {
   }
 
   /**
-   * プレイヤーを作成
-   */
-  private createPlayer(): void {
-    const { width, height } = this.scale;
-
-    // 開始位置に応じてX座標を決定
-    let startX: number;
-    switch (this.startPosition) {
-      case 'left':
-        startX = 50;
-        break;
-      case 'right':
-        startX = width - 50;
-        break;
-      case 'center':
-      default:
-        startX = width / 2;
-        break;
-    }
-
-    // プレイヤー（仮の四角形）
-    this.player = this.add.rectangle(startX, height / 2, 32, 32, 0x66ccff);
-
-    // 物理ボディを有効化
-    this.physics.add.existing(this.player);
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    body.setCollideWorldBounds(true);
-
-    // 移動コントローラーを設定
-    this.playerController = new TopDownController(this, this.player, {
-      speed: 200,
-    });
-  }
-
-  /**
    * UIを作成
    */
   private createUI(): void {
@@ -176,11 +96,7 @@ export class PlayScene extends Core {
     });
 
     // ステータス表示
-    this.statusText = this.add.text(20, 50, '', {
-      fontSize: '18px',
-      color: '#ffcc00',
-      fontFamily: 'Roboto',
-    });
+    this.createStatusUI();
 
     // 右端への案内
     this.add.text(this.scale.width - 200, this.scale.height - 40, '右端で次のシーンへ →', {
@@ -188,52 +104,5 @@ export class PlayScene extends Core {
       color: '#aaaaaa',
       fontFamily: 'Roboto',
     });
-  }
-
-  /**
-   * ステータスUIを更新
-   */
-  private updateStatusUI(): void {
-    const gameData = this.saveManager.getCurrentGameData();
-    if (gameData) {
-      this.statusText.setText(`Lv: ${gameData.lv}  Exp: ${gameData.exp}`);
-    }
-  }
-
-  /**
-   * 入力を設定
-   */
-  private setupInput(): void {
-    // ESCキーでタイトルに戻る
-    this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
-      .on('down', () => {
-        this.playerController.destroy();
-        this.scene.start('Game', { sceneHead: this.sceneHead });
-      });
-  }
-
-  /**
-   * デバッグ機能のセットアップ
-   */
-  private debugSetup(): void {
-    this.keySHIFT = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-
-    this.keySHIFT.on("down", () => {
-      // デバッグオーバーレイ切り替え
-      if (this.game.scene.getScenes(true).some((scene) => scene.scene.key === "Debug")) {
-        store.set("debug.enabled", false);
-        this.scene.stop("Debug");
-        this.physics.world.drawDebug = false;
-        this.physics.world.debugGraphic.clear();
-      } else {
-        store.set("debug.enabled", true);
-        this.scene.launch("Debug", this);
-      }
-    }, this);
-
-    // デバッグ有効時は起動
-    if (store.get("debug.enabled")) {
-      this.scene.launch("Debug", this);
-    }
   }
 }
