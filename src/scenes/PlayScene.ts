@@ -44,6 +44,9 @@ export class PlayScene extends PlayableScene {
    * プレイヤーが画面右端に到達したかチェックし、シーン遷移を行う
    */
   private checkSceneTransition(): void {
+    // 遷移中なら何もしない
+    if (this.isTransitioning) return;
+
     const { width } = this.scale;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
 

@@ -15,14 +15,31 @@ import { TopDownController } from "../../components/gameplay/TopDownController";
 import { SaveDataManager } from "../../lib/cache/SaveDataManager";
 
 /**
+ * プレイヤーサイズ
+ */
+export interface PlayerSize {
+  width: number;
+  height: number;
+}
+
+/**
  * プレイヤー操作可能なシーンの設定
  */
 export interface PlayableSceneConfig {
   /** プレイヤーの色 */
   playerColor: number;
-  /** プレイヤーの移動速度 */
+  /** プレイヤーの移動速度（デフォルト: 200） */
   playerSpeed?: number;
+  /** プレイヤーのサイズ（デフォルト: 32x32） */
+  playerSize?: PlayerSize;
 }
+
+/**
+ * 物理ボディと位置を持つプレイヤーの型
+ */
+type PhysicsPlayer = Phaser.GameObjects.GameObject & 
+  Phaser.GameObjects.Components.Transform & 
+  { body: Phaser.Physics.Arcade.Body };
 
 /**
  * プレイヤー操作可能なシーンの共通基底クラス
@@ -32,8 +49,8 @@ export abstract class PlayableScene extends Core {
   // Input
   protected keySHIFT!: Phaser.Input.Keyboard.Key;
 
-  // Player
-  protected player!: Phaser.GameObjects.Rectangle;
+  // Player（物理ボディと位置を持つGameObject）
+  protected player!: PhysicsPlayer;
   protected playerController!: TopDownController;
 
   // Manager
@@ -45,14 +62,22 @@ export abstract class PlayableScene extends Core {
   // シーン遷移時のプレイヤー開始位置
   protected startPosition: StartPosition = 'center';
 
+  // シーン遷移中フラグ（連続発火防止）
+  protected isTransitioning: boolean = false;
+
   // シーン設定（サブクラスで設定）
   protected abstract readonly config: PlayableSceneConfig;
+
+  // デフォルトのプレイヤーサイズ
+  protected static readonly DEFAULT_PLAYER_SIZE: PlayerSize = { width: 32, height: 32 };
 
   init(data: sceneData) {
     super.init(data);
     this.saveManager = SaveDataManager.getInstance();
     // 開始位置を設定（指定がなければ中央）
     this.startPosition = data.startPosition ?? 'center';
+    // 遷移フラグをリセット
+    this.isTransitioning = false;
   }
 
   preload() {
@@ -66,22 +91,39 @@ export abstract class PlayableScene extends Core {
   }
 
   /**
+   * プレイヤーのサイズを取得
+   */
+  protected getPlayerSize(): PlayerSize {
+    return this.config.playerSize ?? PlayableScene.DEFAULT_PLAYER_SIZE;
+  }
+
+  /**
    * プレイヤーを作成
    * StartPositionに基づいてスポーン位置を決定
    */
   protected createPlayer(): void {
     const { height } = this.scale;
+    const playerSize = this.getPlayerSize();
 
     // 開始位置に応じてX座標を決定
     const startX = this.getSpawnX();
 
     // プレイヤー（仮の四角形）
-    this.player = this.add.rectangle(startX, height / 2, 32, 32, this.config.playerColor);
+    const playerRect = this.add.rectangle(
+      startX,
+      height / 2,
+      playerSize.width,
+      playerSize.height,
+      this.config.playerColor
+    );
 
     // 物理ボディを有効化
-    this.physics.add.existing(this.player);
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    this.physics.add.existing(playerRect);
+    const body = playerRect.body as Phaser.Physics.Arcade.Body;
     body.setCollideWorldBounds(true);
+
+    // プレイヤーとして設定
+    this.player = playerRect as PhysicsPlayer;
 
     // 移動コントローラーを設定
     this.playerController = new TopDownController(this, this.player, {
@@ -145,6 +187,10 @@ export abstract class PlayableScene extends Core {
    * @param startPosition 遷移先でのプレイヤー開始位置
    */
   protected transitionToScene(sceneKey: string, startPosition: StartPosition): void {
+    // 遷移中なら何もしない（連続発火防止）
+    if (this.isTransitioning) return;
+
+    this.isTransitioning = true;
     this.playerController.destroy();
     this.scene.start(sceneKey, { 
       sceneHead: this.sceneHead, 
