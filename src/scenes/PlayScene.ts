@@ -33,8 +33,8 @@ export class PlayScene extends PlayableScene {
     this.updateStatusUI();
   }
 
-  update() {
-    super.update();
+  update(time: number, delta: number) {
+    super.update(time, delta);
 
     // 画面右端に到達したらシーン遷移
     this.checkSceneTransition();

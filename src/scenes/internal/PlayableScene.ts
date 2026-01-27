@@ -10,6 +10,7 @@ import { Core } from "./Core";
 
 // components
 import { TopDownController } from "../../components/gameplay/TopDownController";
+import { ShootingController, ShootingControllerConfig } from "../../components/gameplay/ShootingController";
 
 // manager
 import { SaveDataManager } from "../../lib/cache/SaveDataManager";
@@ -32,6 +33,10 @@ export interface PlayableSceneConfig {
   playerSpeed?: number;
   /** プレイヤーのサイズ（デフォルト: 32x32） */
   playerSize?: PlayerSize;
+  /** 射撃機能を有効にするか（デフォルト: true） */
+  shootingEnabled?: boolean;
+  /** 射撃コントローラーの設定 */
+  shootingConfig?: ShootingControllerConfig;
 }
 
 /**
@@ -52,6 +57,9 @@ export abstract class PlayableScene extends Core {
   // Player（物理ボディと位置を持つGameObject）
   protected player!: PhysicsPlayer;
   protected playerController!: TopDownController;
+
+  // Shooting
+  protected shootingController?: ShootingController;
 
   // Manager
   protected saveManager!: SaveDataManager;
@@ -85,9 +93,12 @@ export abstract class PlayableScene extends Core {
     this.debugSetup();
   }
 
-  update() {
+  update(time: number, delta: number) {
     // プレイヤーの移動を更新
     this.playerController.update();
+
+    // 射撃コントローラーを更新
+    this.shootingController?.update(time, delta);
   }
 
   /**
@@ -129,6 +140,11 @@ export abstract class PlayableScene extends Core {
     this.playerController = new TopDownController(this, this.player, {
       speed: this.config.playerSpeed ?? 200,
     });
+
+    // 射撃コントローラーを設定（有効な場合）
+    if (this.config.shootingEnabled !== false) {
+      this.shootingController = new ShootingController(this, this.player, this.config.shootingConfig);
+    }
   }
 
   /**
@@ -176,7 +192,7 @@ export abstract class PlayableScene extends Core {
   protected setupCommonInput(): void {
     this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
       .on('down', () => {
-        this.playerController.destroy();
+        this.destroyControllers();
         this.scene.start('Game', { sceneHead: this.sceneHead });
       });
   }
@@ -191,11 +207,19 @@ export abstract class PlayableScene extends Core {
     if (this.isTransitioning) return;
 
     this.isTransitioning = true;
-    this.playerController.destroy();
+    this.destroyControllers();
     this.scene.start(sceneKey, { 
       sceneHead: this.sceneHead, 
       startPosition 
     });
+  }
+
+  /**
+   * コントローラーを破棄
+   */
+  protected destroyControllers(): void {
+    this.playerController.destroy();
+    this.shootingController?.destroy();
   }
 
   /**

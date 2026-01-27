@@ -33,8 +33,8 @@ export class PlayScene2 extends PlayableScene {
     this.updateStatusUI();
   }
 
-  update() {
-    super.update();
+  update(time: number, delta: number) {
+    super.update(time, delta);
 
     // 画面左端に到達したら前のシーンへ戻る
     this.checkSceneTransition();
