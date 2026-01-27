@@ -2,7 +2,7 @@
 import store from "storejs";
 
 // types
-import type { sceneData, StartPosition } from "../types/global";
+import type { sceneData } from "../types/global";
 
 // internal
 import { Core } from "./internal/Core";
@@ -14,10 +14,10 @@ import { TopDownController } from "../components/gameplay/TopDownController";
 import { SaveDataManager } from "../lib/cache/SaveDataManager";
 
 /**
- * プレイ画面シーン（トップダウンビュー）
- * WASD/カーソルキーでキャラクターを操作
+ * プレイ画面シーン2（トップダウンビュー）
+ * PlaySceneの右端から遷移してくるシーン
  */
-export class PlayScene extends Core {
+export class PlayScene2 extends Core {
   // Input
   private keySHIFT!: Phaser.Input.Keyboard.Key;
 
@@ -31,18 +31,13 @@ export class PlayScene extends Core {
   // UI
   private statusText!: Phaser.GameObjects.Text;
 
-  // シーン遷移時のプレイヤー開始位置
-  private startPosition: StartPosition = 'center';
-
   constructor() {
-    super({ key: "PlayScene" });
+    super({ key: "PlayScene2" });
   }
 
   init(data: sceneData) {
     super.init(data);
     this.saveManager = SaveDataManager.getInstance();
-    // 開始位置を設定（指定がなければ中央）
-    this.startPosition = data.startPosition ?? 'center';
   }
 
   preload() {
@@ -54,7 +49,7 @@ export class PlayScene extends Core {
     // 背景を作成
     this.createBackground();
 
-    // プレイヤーを作成
+    // プレイヤーを作成（左端から開始）
     this.createPlayer();
 
     // UIを作成
@@ -71,46 +66,45 @@ export class PlayScene extends Core {
     // プレイヤーの移動を更新
     this.playerController.update();
 
-    // 画面右端に到達したらシーン遷移
+    // 画面左端に到達したら前のシーンへ戻る
     this.checkSceneTransition();
   }
 
   /**
-   * プレイヤーが画面右端に到達したかチェックし、シーン遷移を行う
+   * プレイヤーが画面左端に到達したかチェックし、シーン遷移を行う
    */
   private checkSceneTransition(): void {
-    const { width } = this.scale;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
 
-    // プレイヤーが右端に到達したら（ワールド境界に接触）
-    if (body.blocked.right || this.player.x >= width - body.halfWidth) {
-      this.transitionToNextScene();
+    // プレイヤーが左端に到達したら（ワールド境界に接触）
+    if (body.blocked.left || this.player.x <= body.halfWidth) {
+      this.transitionToPreviousScene();
     }
   }
 
   /**
-   * 次のシーンへ遷移
+   * 前のシーンへ遷移
    */
-  private transitionToNextScene(): void {
+  private transitionToPreviousScene(): void {
     // コントローラーを破棄
     this.playerController.destroy();
 
-    // 次のシーンへ遷移（sceneDataを渡す）
-    this.scene.start('PlayScene2', { sceneHead: this.sceneHead });
+    // 前のシーンへ遷移（右端から開始）
+    this.scene.start('PlayScene', { sceneHead: this.sceneHead, startPosition: 'right' });
   }
 
   /**
-   * 背景を作成（グリッドパターン）
+   * 背景を作成（グリッドパターン - 異なる色）
    */
   private createBackground(): void {
     const { width, height } = this.scale;
 
-    // 背景色
-    this.add.rectangle(width / 2, height / 2, width, height, 0x1a1a2e);
+    // 背景色（異なる色で区別）
+    this.add.rectangle(width / 2, height / 2, width, height, 0x2e1a2e);
 
     // グリッド線を描画
     const graphics = this.add.graphics();
-    graphics.lineStyle(1, 0x2d2d44, 0.5);
+    graphics.lineStyle(1, 0x442d44, 0.5);
 
     const gridSize = 40;
 
@@ -130,28 +124,14 @@ export class PlayScene extends Core {
   }
 
   /**
-   * プレイヤーを作成
+   * プレイヤーを作成（左端から開始）
    */
   private createPlayer(): void {
-    const { width, height } = this.scale;
+    const { height } = this.scale;
 
-    // 開始位置に応じてX座標を決定
-    let startX: number;
-    switch (this.startPosition) {
-      case 'left':
-        startX = 50;
-        break;
-      case 'right':
-        startX = width - 50;
-        break;
-      case 'center':
-      default:
-        startX = width / 2;
-        break;
-    }
-
-    // プレイヤー（仮の四角形）
-    this.player = this.add.rectangle(startX, height / 2, 32, 32, 0x66ccff);
+    // プレイヤー（仮の四角形 - 異なる色）
+    // 左端から開始するため、x座標を小さく設定
+    this.player = this.add.rectangle(50, height / 2, 32, 32, 0xff66cc);
 
     // 物理ボディを有効化
     this.physics.add.existing(this.player);
@@ -168,8 +148,8 @@ export class PlayScene extends Core {
    * UIを作成
    */
   private createUI(): void {
-    // 操作説明
-    this.add.text(20, 20, 'Scene 1 | WASD/カーソル: 移動 | ESC: タイトルへ | SHIFT: Debug', {
+    // シーン名表示
+    this.add.text(20, 20, 'Scene 2 | WASD/カーソル: 移動 | ESC: タイトルへ | SHIFT: Debug', {
       fontSize: '16px',
       color: '#ffffff',
       fontFamily: 'Roboto',
@@ -182,8 +162,8 @@ export class PlayScene extends Core {
       fontFamily: 'Roboto',
     });
 
-    // 右端への案内
-    this.add.text(this.scale.width - 200, this.scale.height - 40, '右端で次のシーンへ →', {
+    // 左端への案内
+    this.add.text(20, this.scale.height - 40, '← 左端で前のシーンへ戻る', {
       fontSize: '14px',
       color: '#aaaaaa',
       fontFamily: 'Roboto',
