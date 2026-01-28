@@ -11,6 +11,8 @@ import { Core } from "./Core";
 // components
 import { TopDownController } from "../../components/gameplay/TopDownController";
 import { ShootingController, ShootingControllerConfig } from "../../components/gameplay/ShootingController";
+import { PlayerStats, PlayerStatsConfig } from "../../components/gameplay/PlayerStats";
+import { StatusBar } from "../../components/ui/StatusBar";
 
 // manager
 import { SaveDataManager } from "../../lib/cache/SaveDataManager";
@@ -37,6 +39,8 @@ export interface PlayableSceneConfig {
   shootingEnabled?: boolean;
   /** 射撃コントローラーの設定 */
   shootingConfig?: ShootingControllerConfig;
+  /** プレイヤーステータスの設定 */
+  playerStatsConfig?: PlayerStatsConfig;
 }
 
 /**
@@ -57,6 +61,7 @@ export abstract class PlayableScene extends Core {
   // Player（物理ボディと位置を持つGameObject）
   protected player!: PhysicsPlayer;
   protected playerController!: TopDownController;
+  protected playerStats!: PlayerStats;
 
   // Shooting
   protected shootingController?: ShootingController;
@@ -66,6 +71,8 @@ export abstract class PlayableScene extends Core {
 
   // UI
   protected statusText!: Phaser.GameObjects.Text;
+  protected hpBar!: StatusBar;
+  protected mpBar!: StatusBar;
 
   // シーン遷移時のプレイヤー開始位置
   protected startPosition: StartPosition = 'center';
@@ -96,6 +103,9 @@ export abstract class PlayableScene extends Core {
   update(time: number, delta: number) {
     // プレイヤーの移動を更新
     this.playerController.update();
+
+    // プレイヤーステータスを更新（MP自動回復）
+    this.playerStats.update(delta);
 
     // 射撃コントローラーを更新
     this.shootingController?.update(time, delta);
@@ -136,6 +146,20 @@ export abstract class PlayableScene extends Core {
     // プレイヤーとして設定
     this.player = playerRect as PhysicsPlayer;
 
+    // プレイヤーステータスを初期化
+    this.playerStats = new PlayerStats(this, this.config.playerStatsConfig);
+
+    // HP/MP変化時のイベントリスナーを設定
+    this.playerStats.on('hpChange', (hp: number, maxHp: number) => {
+      this.hpBar?.setValueFromNumbers(hp, maxHp);
+    });
+    this.playerStats.on('mpChange', (mp: number, maxMp: number) => {
+      this.mpBar?.setValueFromNumbers(mp, maxMp);
+    });
+    this.playerStats.on('death', () => {
+      this.handlePlayerDeath();
+    });
+
     // 移動コントローラーを設定
     this.playerController = new TopDownController(this, this.player, {
       speed: this.config.playerSpeed ?? 200,
@@ -143,7 +167,10 @@ export abstract class PlayableScene extends Core {
 
     // 射撃コントローラーを設定（有効な場合）
     if (this.config.shootingEnabled !== false) {
-      this.shootingController = new ShootingController(this, this.player, this.config.shootingConfig);
+      this.shootingController = new ShootingController(this, this.player, {
+        ...this.config.shootingConfig,
+        playerStats: this.playerStats,
+      });
     }
   }
 
@@ -174,6 +201,42 @@ export abstract class PlayableScene extends Core {
       color: '#ffcc00',
       fontFamily: 'Roboto',
     });
+
+    // HPバーを作成（左上）
+    this.hpBar = new StatusBar(this, {
+      x: 50,
+      y: 80,
+      width: 180,
+      height: 22,
+      fillColor: 0xff4444,
+      backgroundColor: 0x441111,
+      borderColor: 0xff6666,
+      label: 'HP',
+      initialValue: 1,
+    });
+
+    // MPバーを作成（HPバーの下）
+    this.mpBar = new StatusBar(this, {
+      x: 50,
+      y: 110,
+      width: 180,
+      height: 22,
+      fillColor: 0x4444ff,
+      backgroundColor: 0x111144,
+      borderColor: 0x6666ff,
+      label: 'MP',
+      initialValue: 1,
+    });
+
+    // 初期値を設定
+    this.hpBar.setValueFromNumbers(
+      this.playerStats.getHp(),
+      this.playerStats.getMaxHp()
+    );
+    this.mpBar.setValueFromNumbers(
+      this.playerStats.getMp(),
+      this.playerStats.getMaxMp()
+    );
   }
 
   /**
@@ -184,6 +247,17 @@ export abstract class PlayableScene extends Core {
     if (gameData) {
       this.statusText.setText(`Lv: ${gameData.lv}  Exp: ${gameData.exp}`);
     }
+  }
+
+  /**
+   * プレイヤー死亡時の処理
+   * サブクラスでオーバーライド可能
+   */
+  protected handlePlayerDeath(): void {
+    // デフォルトではタイトルに戻る
+    console.log('Player died!');
+    this.destroyControllers();
+    this.scene.start('Game', { sceneHead: this.sceneHead });
   }
 
   /**
@@ -220,6 +294,7 @@ export abstract class PlayableScene extends Core {
   protected destroyControllers(): void {
     this.playerController.destroy();
     this.shootingController?.destroy();
+    this.playerStats?.destroy();
   }
 
   /**

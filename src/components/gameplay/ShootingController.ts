@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BulletPool, BulletPoolConfig } from './BulletPool';
+import { PlayerStats } from './PlayerStats';
 
 /**
  * 射撃コントローラーの設定
@@ -9,6 +10,8 @@ export interface ShootingControllerConfig {
   fireRate?: number;
   /** 弾プールの設定 */
   bulletPoolConfig?: BulletPoolConfig;
+  /** プレイヤーステータス（MP消費に使用、オプション） */
+  playerStats?: PlayerStats;
 }
 
 /**
@@ -31,6 +34,7 @@ export class ShootingController {
   private scene: Phaser.Scene;
   private shooter: Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform;
   private bulletPool: BulletPool;
+  private playerStats?: PlayerStats;
 
   // 射撃設定
   private fireRate: number;
@@ -52,6 +56,7 @@ export class ShootingController {
     this.scene = scene;
     this.shooter = shooter;
     this.fireRate = config.fireRate ?? 100;
+    this.playerStats = config.playerStats;
 
     // 弾プールを作成
     this.bulletPool = new BulletPool(scene, config.bulletPoolConfig);
@@ -83,6 +88,14 @@ export class ShootingController {
     // 連射間隔チェック
     if (time - this.lastFireTime < this.fireRate) {
       return;
+    }
+
+    // MP消費チェック（PlayerStatsが設定されている場合）
+    if (this.playerStats) {
+      if (!this.playerStats.canShoot()) {
+        return; // MP不足で発射不可
+      }
+      this.playerStats.consumeMpForShot();
     }
 
     const pointer = this.scene.input.activePointer;
