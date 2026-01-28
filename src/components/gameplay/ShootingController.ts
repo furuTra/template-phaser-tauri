@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BulletPool, BulletPoolConfig } from './BulletPool';
-import { PlayerStats } from './PlayerStats';
+import { PlayerStatsGameplayComponent } from './PlayerStatsGameplayComponent';
 
 /**
  * 射撃コントローラーの設定
@@ -11,7 +11,7 @@ export interface ShootingControllerConfig {
   /** 弾プールの設定 */
   bulletPoolConfig?: BulletPoolConfig;
   /** プレイヤーステータス（MP消費に使用、オプション） */
-  playerStats?: PlayerStats;
+  playerStats?: PlayerStatsGameplayComponent;
 }
 
 /**
@@ -34,7 +34,7 @@ export class ShootingController {
   private scene: Phaser.Scene;
   private shooter: Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform;
   private bulletPool: BulletPool;
-  private playerStats?: PlayerStats;
+  private playerStats?: PlayerStatsGameplayComponent;
 
   // 射撃設定
   private fireRate: number;

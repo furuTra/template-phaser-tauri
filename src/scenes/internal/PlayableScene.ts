@@ -4,6 +4,7 @@ import store from "storejs";
 
 // types
 import type { sceneData, StartPosition } from "../../types/global";
+import type { PlayerStatsConfig } from "../../types/Character/Player";
 
 // internal
 import { Core } from "./Core";
@@ -11,8 +12,8 @@ import { Core } from "./Core";
 // components
 import { TopDownController } from "../../components/gameplay/TopDownController";
 import { ShootingController, ShootingControllerConfig } from "../../components/gameplay/ShootingController";
-import { PlayerStats, PlayerStatsConfig } from "../../components/gameplay/PlayerStats";
-import { StatusBar } from "../../components/ui/StatusBar";
+import { PlayerStatsGameplayComponent } from "../../components/gameplay/PlayerStatsGameplayComponent";
+import { StatusBarUIComponent } from "../../components/ui/StatusBarUIComponent";
 
 // manager
 import { SaveDataManager } from "../../lib/cache/SaveDataManager";
@@ -61,7 +62,7 @@ export abstract class PlayableScene extends Core {
   // Player（物理ボディと位置を持つGameObject）
   protected player!: PhysicsPlayer;
   protected playerController!: TopDownController;
-  protected playerStats!: PlayerStats;
+  protected playerStats!: PlayerStatsGameplayComponent;
 
   // Shooting
   protected shootingController?: ShootingController;
@@ -71,8 +72,8 @@ export abstract class PlayableScene extends Core {
 
   // UI
   protected statusText!: Phaser.GameObjects.Text;
-  protected hpBar!: StatusBar;
-  protected mpBar!: StatusBar;
+  protected hpBar!: StatusBarUIComponent;
+  protected mpBar!: StatusBarUIComponent;
 
   // シーン遷移時のプレイヤー開始位置
   protected startPosition: StartPosition = 'center';
@@ -147,7 +148,7 @@ export abstract class PlayableScene extends Core {
     this.player = playerRect as PhysicsPlayer;
 
     // プレイヤーステータスを初期化
-    this.playerStats = new PlayerStats(this, this.config.playerStatsConfig);
+    this.playerStats = new PlayerStatsGameplayComponent(this, this.config.playerStatsConfig);
 
     // HP/MP変化時のイベントリスナーを設定
     this.playerStats.on('hpChange', (hp: number, maxHp: number) => {
@@ -203,7 +204,7 @@ export abstract class PlayableScene extends Core {
     });
 
     // HPバーを作成（左上）
-    this.hpBar = new StatusBar(this, {
+    this.hpBar = new StatusBarUIComponent(this, {
       x: 50,
       y: 80,
       width: 180,
@@ -216,7 +217,7 @@ export abstract class PlayableScene extends Core {
     });
 
     // MPバーを作成（HPバーの下）
-    this.mpBar = new StatusBar(this, {
+    this.mpBar = new StatusBarUIComponent(this, {
       x: 50,
       y: 110,
       width: 180,
