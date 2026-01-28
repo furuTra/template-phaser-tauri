@@ -4,8 +4,8 @@ import {
   setFullscreen,
   loadWindowSettings,
   WindowSettings
-} from '../lib/windowSettings';
-import { Button } from '../components/ui/Button';
+} from '@/lib/windowSettings';
+import { Button } from '@/components/ui/Button';
 
 export class Settings extends Phaser.Scene {
   private currentSettings!: WindowSettings;

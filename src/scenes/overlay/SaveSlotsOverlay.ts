@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { SaveSlot } from '../../components/ui/SaveSlot';
-import type { SaveData } from '../../lib/database';
-import { SaveDataManager } from '../../lib/cache/SaveDataManager';
+import { SaveSlot } from '@/components/ui/SaveSlot';
+import type { SaveData } from '@/lib/database';
+import { SaveDataManager } from '@/lib/cache/SaveDataManager';
 
 /**
  * セーブスロット選択画面のオーバーレイシーン

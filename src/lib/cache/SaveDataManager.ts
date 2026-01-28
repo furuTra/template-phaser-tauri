@@ -1,10 +1,10 @@
-import type { SaveData, GameData } from '../database';
+import type { SaveData, GameData } from '@/lib/database';
 import {
   getAllSaves,
   parseGameData,
   getDefaultGameData,
   createSave,
-} from '../database';
+} from '@/lib/database';
 
 /**
  * セーブデータのフロントエンド状態管理（Store）

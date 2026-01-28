@@ -45,7 +45,10 @@ export default defineConfig(async () => ({
 	},
 	// remap source folder
 	resolve: {
-		alias: { src: path.resolve(process.cwd(), "src") },
+		alias: {
+			src: path.resolve(process.cwd(), "src"),
+			"@": path.resolve(process.cwd(), "src"),
+		},
 	},
 }));
 

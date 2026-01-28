@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 
 // types
-import type { PlayerStatsConfig } from '../../types/Character/Player';
+import type { PlayerStatsConfig } from '@/types/Character/Player';
 
 // 型定義を再エクスポート（後方互換性のため）
-export type { PlayerStatsConfig } from '../../types/Character/Player';
+export type { PlayerStatsConfig } from '@/types/Character/Player';
 
 /**
  * プレイヤーステータス管理コンポーネント

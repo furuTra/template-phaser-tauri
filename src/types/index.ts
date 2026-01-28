@@ -1,2 +1,2 @@
 // Type definitions
-export * from './Character';
+export * from '@/types/Character';

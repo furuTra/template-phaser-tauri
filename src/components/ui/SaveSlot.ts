@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { parseGameData, SaveData } from '../../lib/database';
+import { parseGameData, SaveData } from '@/lib/database';
 
 export interface SaveSlotConfig {
   x: number;

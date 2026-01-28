@@ -2,7 +2,7 @@
 import Phaser from "phaser";
 
 // internal
-import { Core } from "./Core";
+import { Core } from "@/scenes/internal/Core";
 
 // Global background scene that acts as a manager for current scenes and stores useful information that should persist between them.
 

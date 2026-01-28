@@ -1,5 +1,5 @@
 // scenes
-import { Game } from "../Game";
+import { Game } from "@/scenes/Game";
 
 export class Debug extends Phaser.Scene {
 	sceneGame!: Game;

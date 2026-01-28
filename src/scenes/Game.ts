@@ -2,14 +2,14 @@
 import store from "storejs";
 
 // types
-import type { sceneData } from "../types/global";
-import type { SaveData, GameData } from "../lib/database";
+import type { sceneData } from "@/types/global";
+import type { SaveData, GameData } from "@/lib/database";
 
 // internal
-import { Core } from "./internal/Core";
+import { Core } from "@/scenes/internal/Core";
 
 // manager
-import { SaveDataManager } from "../lib/cache/SaveDataManager";
+import { SaveDataManager } from "@/lib/cache/SaveDataManager";
 
 export class Game extends Core {
 	// input

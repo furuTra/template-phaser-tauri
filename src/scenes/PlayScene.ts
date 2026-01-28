@@ -1,5 +1,5 @@
 // internal
-import { PlayableScene, PlayableSceneConfig } from "./internal/PlayableScene";
+import { PlayableScene, PlayableSceneConfig } from "@/scenes/internal/PlayableScene";
 
 /**
  * プレイ画面シーン1（トップダウンビュー）

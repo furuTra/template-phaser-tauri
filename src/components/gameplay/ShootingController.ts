@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { BulletPool, BulletPoolConfig } from './BulletPool';
-import { PlayerStatsGameplayComponent } from './PlayerStatsGameplayComponent';
+import { BulletPool, BulletPoolConfig } from '@/components/gameplay/BulletPool';
+import { PlayerStatsGameplayComponent } from '@/components/gameplay/PlayerStatsGameplayComponent';
 
 /**
  * 射撃コントローラーの設定

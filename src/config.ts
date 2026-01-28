@@ -2,8 +2,8 @@
 import Phaser from "phaser";
 
 // utility
-import Utility from "./scripts/utility/Utility";
-import ColorScheme from "./scripts/utility/ColorScheme";
+import Utility from "@/scripts/utility/Utility";
+import ColorScheme from "@/scripts/utility/ColorScheme";
 
 // General game settings and information exist here.
 

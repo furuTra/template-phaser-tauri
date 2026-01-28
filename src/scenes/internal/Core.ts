@@ -2,10 +2,10 @@
 import Phaser from "phaser";
 
 // types
-import { sceneData } from "../../types/global";
+import { sceneData } from "@/types/global";
 
 // internal
-import { Head } from "./Head";
+import { Head } from "@/scenes/internal/Head";
 
 // Doesn't run on it's own. All main scenes extend from this scene. Put common functionality here.
 

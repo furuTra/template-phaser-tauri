@@ -3,20 +3,20 @@ import Phaser from "phaser";
 import store from "storejs";
 
 // types
-import type { sceneData, StartPosition } from "../../types/global";
-import type { PlayerStatsConfig } from "../../types/Character/Player";
+import type { sceneData, StartPosition } from "@/types/global";
+import type { PlayerStatsConfig } from "@/types/Character/Player";
 
 // internal
-import { Core } from "./Core";
+import { Core } from "@/scenes/internal/Core";
 
 // components
-import { TopDownController } from "../../components/gameplay/TopDownController";
-import { ShootingController, ShootingControllerConfig } from "../../components/gameplay/ShootingController";
-import { PlayerStatsGameplayComponent } from "../../components/gameplay/PlayerStatsGameplayComponent";
-import { StatusBarUIComponent } from "../../components/ui/StatusBarUIComponent";
+import { TopDownController } from "@/components/gameplay/TopDownController";
+import { ShootingController, ShootingControllerConfig } from "@/components/gameplay/ShootingController";
+import { PlayerStatsGameplayComponent } from "@/components/gameplay/PlayerStatsGameplayComponent";
+import { StatusBarUIComponent } from "@/components/ui/StatusBarUIComponent";
 
 // manager
-import { SaveDataManager } from "../../lib/cache/SaveDataManager";
+import { SaveDataManager } from "@/lib/cache/SaveDataManager";
 
 /**
  * プレイヤーサイズ
