@@ -1,0 +1,130 @@
+{
+  "weapons": [
+    {
+      "id": "weapon_default_gun",
+      "name": "デフォルトガン",
+      "description": "標準的な射撃武器。バランスの取れた性能。",
+      "attackPower": 10,
+      "mpCost": 15,
+      "cooldown": 100,
+      "maxAmmo": null,
+      "currentAmmo": null,
+      "velocity": {
+        "type": "constant",
+        "initialSpeed": 500
+      },
+      "trajectory": {
+        "type": "straight"
+      },
+      "effects": [],
+      "range": 1000,
+      "simultaneousShots": 1,
+      "angleOffset": 0,
+      "bulletWidth": 16,
+      "bulletHeight": 8,
+      "bulletColor": 16776960
+    },
+    {
+      "id": "weapon_rapid_gun",
+      "name": "ラピッドガン",
+      "description": "連射速度に優れた武器。消費MPが少ない。",
+      "attackPower": 5,
+      "mpCost": 5,
+      "cooldown": 50,
+      "maxAmmo": null,
+      "currentAmmo": null,
+      "velocity": {
+        "type": "constant",
+        "initialSpeed": 600
+      },
+      "trajectory": {
+        "type": "straight"
+      },
+      "effects": [],
+      "range": 800,
+      "simultaneousShots": 1,
+      "angleOffset": 0,
+      "bulletWidth": 12,
+      "bulletHeight": 6,
+      "bulletColor": 65535
+    },
+    {
+      "id": "weapon_spread_gun",
+      "name": "スプレッドガン",
+      "description": "3方向に同時発射する拡散武器。",
+      "attackPower": 8,
+      "mpCost": 25,
+      "cooldown": 200,
+      "maxAmmo": null,
+      "currentAmmo": null,
+      "velocity": {
+        "type": "constant",
+        "initialSpeed": 450
+      },
+      "trajectory": {
+        "type": "straight"
+      },
+      "effects": [],
+      "range": 600,
+      "simultaneousShots": 3,
+      "angleOffset": 15,
+      "bulletWidth": 14,
+      "bulletHeight": 7,
+      "bulletColor": 16711935
+    },
+    {
+      "id": "weapon_heavy_cannon",
+      "name": "ヘビーキャノン",
+      "description": "高火力だが発射間隔が長い。貫通効果あり。",
+      "attackPower": 30,
+      "mpCost": 40,
+      "cooldown": 500,
+      "maxAmmo": null,
+      "currentAmmo": null,
+      "velocity": {
+        "type": "constant",
+        "initialSpeed": 400
+      },
+      "trajectory": {
+        "type": "straight"
+      },
+      "effects": [
+        {
+          "type": "pierce",
+          "pierceCount": 3
+        }
+      ],
+      "range": 1200,
+      "simultaneousShots": 1,
+      "angleOffset": 0,
+      "bulletWidth": 24,
+      "bulletHeight": 12,
+      "bulletColor": 16744448
+    },
+    {
+      "id": "weapon_homing_laser",
+      "name": "ホーミングレーザー",
+      "description": "敵を追尾する誘導弾。",
+      "attackPower": 12,
+      "mpCost": 30,
+      "cooldown": 300,
+      "maxAmmo": null,
+      "currentAmmo": null,
+      "velocity": {
+        "type": "constant",
+        "initialSpeed": 350
+      },
+      "trajectory": {
+        "type": "homing",
+        "homingStrength": 0.8
+      },
+      "effects": [],
+      "range": 1500,
+      "simultaneousShots": 1,
+      "angleOffset": 0,
+      "bulletWidth": 20,
+      "bulletHeight": 4,
+      "bulletColor": 65280
+    }
+  ]
+}

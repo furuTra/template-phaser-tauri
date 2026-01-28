@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { RangedWeapon } from '@/types/Weapon';
 
 /**
  * 弾の設定
@@ -14,6 +15,21 @@ export interface BulletConfig {
   speed?: number;
   /** 弾の寿命（ミリ秒、デフォルト: 2000） */
   lifespan?: number;
+}
+
+/**
+ * 武器から弾の設定を生成
+ * @param weapon 遠距離武器
+ * @returns 弾の設定
+ */
+export function createBulletConfigFromWeapon(weapon: RangedWeapon): BulletConfig {
+  return {
+    width: weapon.bulletWidth,
+    height: weapon.bulletHeight,
+    color: weapon.bulletColor,
+    speed: weapon.velocity.initialSpeed,
+    lifespan: (weapon.range / weapon.velocity.initialSpeed) * 1000,
+  };
 }
 
 /**
@@ -72,6 +88,26 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
     this.setActive(false);
     this.setVisible(false);
     this.setPosition(-100, -100);
+  }
+
+  /**
+   * 弾の設定を適用
+   * 武器から動的に設定を変更する場合に使用
+   * @param config 弾の設定
+   */
+  applyConfig(config: BulletConfig): void {
+    if (config.width !== undefined || config.height !== undefined) {
+      this.setSize(config.width ?? this.width, config.height ?? this.height);
+    }
+    if (config.color !== undefined) {
+      this.setFillStyle(config.color);
+    }
+    if (config.speed !== undefined) {
+      this.speed = config.speed;
+    }
+    if (config.lifespan !== undefined) {
+      this.lifespan = config.lifespan;
+    }
   }
 
   /**
@@ -143,6 +179,36 @@ export class BulletPool extends Phaser.GameObjects.Group {
     const bullet = this.getFirstDead(false) as Bullet | null;
 
     if (bullet) {
+      bullet.fire(fromX, fromY, targetX, targetY);
+      return bullet;
+    }
+
+    return null;
+  }
+
+  /**
+   * カスタム設定で弾を発射
+   * 武器システムから呼び出され、武器固有の弾設定を適用
+   * @param fromX 発射元X座標
+   * @param fromY 発射元Y座標
+   * @param targetX 目標X座標
+   * @param targetY 目標Y座標
+   * @param config 弾の設定（武器から生成）
+   * @returns 発射した弾、または利用可能な弾がない場合はnull
+   */
+  fireWithConfig(
+    fromX: number,
+    fromY: number,
+    targetX: number,
+    targetY: number,
+    config: BulletConfig
+  ): Bullet | null {
+    // 非アクティブな弾を取得
+    const bullet = this.getFirstDead(false) as Bullet | null;
+
+    if (bullet) {
+      // 武器設定を弾に適用
+      bullet.applyConfig(config);
       bullet.fire(fromX, fromY, targetX, targetY);
       return bullet;
     }

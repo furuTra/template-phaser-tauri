@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 
 // types
 import type { PlayerStatsConfig } from '@/types/Character/Player';
+import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
 
 // 型定義を再エクスポート（後方互換性のため）
 export type { PlayerStatsConfig } from '@/types/Character/Player';
@@ -55,6 +56,9 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
   // === 成長ステータス ===
   private level: number;
   private exp: number;
+
+  // === 武器関連 ===
+  private equippedWeapon: RangedWeapon | null = null;
 
   /**
    * @param _scene 所属するシーン（将来の拡張用）
@@ -213,17 +217,28 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
 
   /**
    * 射撃可能かどうか（MP足りているか）
+   * 武器が装備されている場合は武器のmpCostを使用
    */
   canShoot(): boolean {
-    return this.mp >= this.mpCostPerShot;
+    const cost = this.getEffectiveMpCost();
+    return this.mp >= cost;
   }
 
   /**
    * 射撃のためのMPを消費
+   * 武器が装備されている場合は武器のmpCostを使用
    * @returns 消費できたかどうか
    */
   consumeMpForShot(): boolean {
-    return this.consumeMp(this.mpCostPerShot);
+    const cost = this.getEffectiveMpCost();
+    return this.consumeMp(cost);
+  }
+
+  /**
+   * 実効MP消費量を取得（武器優先）
+   */
+  private getEffectiveMpCost(): number {
+    return this.equippedWeapon?.mpCost ?? this.mpCostPerShot;
   }
 
   /**
@@ -401,6 +416,61 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
       level: this.level,
       exp: this.exp,
     };
+  }
+
+  // === 武器関連メソッド ===
+
+  /**
+   * 武器を装備
+   * @param weapon 装備する武器
+   */
+  equipWeapon(weapon: RangedWeapon): void {
+    this.equippedWeapon = weapon;
+    this.emit('weaponChange', weapon);
+  }
+
+  /**
+   * 武器を外す
+   */
+  unequipWeapon(): void {
+    this.equippedWeapon = null;
+    this.emit('weaponChange', null);
+  }
+
+  /**
+   * 装備中の武器を取得
+   */
+  getEquippedWeapon(): RangedWeapon | null {
+    return this.equippedWeapon;
+  }
+
+  /**
+   * 装備中の武器IDを取得
+   */
+  getEquippedWeaponId(): string | null {
+    return this.equippedWeapon?.id ?? null;
+  }
+
+  /**
+   * 武器が装備されているか
+   */
+  hasWeaponEquipped(): boolean {
+    return this.equippedWeapon !== null;
+  }
+
+  /**
+   * 現在の攻撃力を取得（武器ボーナス込み）
+   */
+  getTotalAttack(): number {
+    const weaponPower = this.equippedWeapon?.attackPower ?? 0;
+    return this.attack + weaponPower;
+  }
+
+  /**
+   * 現在の攻撃間隔を取得（武器から、なければデフォルト）
+   */
+  getFireRate(): number {
+    return this.equippedWeapon?.cooldown ?? 100;
   }
 
   /**

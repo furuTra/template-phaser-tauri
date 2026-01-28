@@ -1,27 +1,35 @@
 import Phaser from 'phaser';
 import { BulletPool, BulletPoolConfig } from '@/components/gameplay/BulletPool';
 import { PlayerStatsGameplayComponent } from '@/components/gameplay/PlayerStatsGameplayComponent';
+import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
 
 /**
  * 射撃コントローラーの設定
  */
 export interface ShootingControllerConfig {
-  /** 連射間隔（ミリ秒、デフォルト: 100） */
+  /** 連射間隔（ミリ秒、デフォルト: 100）- 武器未装備時のフォールバック */
   fireRate?: number;
-  /** 弾プールの設定 */
+  /** 弾プールの設定 - 武器未装備時のフォールバック */
   bulletPoolConfig?: BulletPoolConfig;
-  /** プレイヤーステータス（MP消費に使用、オプション） */
+  /** プレイヤーステータス（MP消費・武器参照に使用、オプション） */
   playerStats?: PlayerStatsGameplayComponent;
 }
 
 /**
  * 射撃コントローラー
  * マウス方向への弾の連射を管理
+ * 武器システムと連携し、装備中の武器からパラメータを取得
  * 
  * 使用例:
  * ```typescript
  * // create()で初期化
- * this.shootingController = new ShootingController(this, player, { fireRate: 100 });
+ * this.shootingController = new ShootingController(this, player, { 
+ *   fireRate: 100,
+ *   playerStats: this.playerStats 
+ * });
+ * 
+ * // 武器を装備（playerStats経由）
+ * this.playerStats.equipWeapon(weapon);
  * 
  * // update()で更新
  * this.shootingController.update(time, delta);
@@ -36,8 +44,8 @@ export class ShootingController {
   private bulletPool: BulletPool;
   private playerStats?: PlayerStatsGameplayComponent;
 
-  // 射撃設定
-  private fireRate: number;
+  // 射撃設定（フォールバック値）
+  private defaultFireRate: number;
   private lastFireTime: number = 0;
 
   // 有効フラグ
@@ -55,11 +63,25 @@ export class ShootingController {
   ) {
     this.scene = scene;
     this.shooter = shooter;
-    this.fireRate = config.fireRate ?? 100;
+    this.defaultFireRate = config.fireRate ?? 100;
     this.playerStats = config.playerStats;
 
     // 弾プールを作成
     this.bulletPool = new BulletPool(scene, config.bulletPoolConfig);
+  }
+
+  /**
+   * 現在の連射間隔を取得（武器優先）
+   */
+  private getEffectiveFireRate(): number {
+    return this.playerStats?.getFireRate() ?? this.defaultFireRate;
+  }
+
+  /**
+   * 装備中の武器を取得
+   */
+  private getEquippedWeapon(): RangedWeapon | null {
+    return this.playerStats?.getEquippedWeapon() ?? null;
   }
 
   /**
@@ -85,8 +107,9 @@ export class ShootingController {
    * @param time 現在時間
    */
   private tryFire(time: number): void {
-    // 連射間隔チェック
-    if (time - this.lastFireTime < this.fireRate) {
+    // 連射間隔チェック（武器の cooldown を使用）
+    const fireRate = this.getEffectiveFireRate();
+    if (time - this.lastFireTime < fireRate) {
       return;
     }
 
@@ -99,16 +122,63 @@ export class ShootingController {
     }
 
     const pointer = this.scene.input.activePointer;
+    const weapon = this.getEquippedWeapon();
 
-    // 弾を発射
-    this.bulletPool.fire(
-      this.shooter.x,
-      this.shooter.y,
-      pointer.worldX,
-      pointer.worldY
-    );
+    // 武器が装備されている場合は武器設定で発射
+    if (weapon) {
+      this.fireWithWeapon(weapon, pointer.worldX, pointer.worldY);
+    } else {
+      // 武器なしの場合はデフォルト発射
+      this.bulletPool.fire(
+        this.shooter.x,
+        this.shooter.y,
+        pointer.worldX,
+        pointer.worldY
+      );
+    }
 
     this.lastFireTime = time;
+  }
+
+  /**
+   * 武器設定で弾を発射
+   */
+  private fireWithWeapon(weapon: RangedWeapon, targetX: number, targetY: number): void {
+    const baseAngle = Phaser.Math.Angle.Between(
+      this.shooter.x, this.shooter.y,
+      targetX, targetY
+    );
+
+    // 同時発射数分ループ
+    for (let i = 0; i < weapon.simultaneousShots; i++) {
+      // 角度オフセットを計算（中央を基準に左右に拡散）
+      let angleOffset = 0;
+      if (weapon.simultaneousShots > 1) {
+        const totalSpread = Phaser.Math.DegToRad(weapon.angleOffset * 2);
+        const step = totalSpread / (weapon.simultaneousShots - 1);
+        angleOffset = -totalSpread / 2 + step * i;
+      }
+
+      const finalAngle = baseAngle + angleOffset;
+      const distance = 1000; // 十分な距離
+      const finalTargetX = this.shooter.x + Math.cos(finalAngle) * distance;
+      const finalTargetY = this.shooter.y + Math.sin(finalAngle) * distance;
+
+      // 武器の弾設定で発射
+      this.bulletPool.fireWithConfig(
+        this.shooter.x,
+        this.shooter.y,
+        finalTargetX,
+        finalTargetY,
+        {
+          width: weapon.bulletWidth,
+          height: weapon.bulletHeight,
+          color: weapon.bulletColor,
+          speed: weapon.velocity.initialSpeed,
+          lifespan: (weapon.range / weapon.velocity.initialSpeed) * 1000,
+        }
+      );
+    }
   }
 
   /**
@@ -117,7 +187,12 @@ export class ShootingController {
    * @param targetY 目標Y座標
    */
   fireAt(targetX: number, targetY: number): void {
-    this.bulletPool.fire(this.shooter.x, this.shooter.y, targetX, targetY);
+    const weapon = this.getEquippedWeapon();
+    if (weapon) {
+      this.fireWithWeapon(weapon, targetX, targetY);
+    } else {
+      this.bulletPool.fire(this.shooter.x, this.shooter.y, targetX, targetY);
+    }
   }
 
   /**
@@ -142,10 +217,10 @@ export class ShootingController {
   }
 
   /**
-   * 連射間隔を設定
+   * デフォルト連射間隔を設定（武器未装備時のフォールバック）
    */
   setFireRate(fireRate: number): void {
-    this.fireRate = fireRate;
+    this.defaultFireRate = fireRate;
   }
 
   /**
