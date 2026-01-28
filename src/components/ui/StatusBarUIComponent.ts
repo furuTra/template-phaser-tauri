@@ -39,7 +39,7 @@ export interface StatusBarConfig {
  * 使用例:
  * ```typescript
  * // HP バー
- * this.hpBar = new StatusBar(this, {
+ * this.hpBar = new StatusBarUIComponent(this, {
  *   x: 20,
  *   y: 50,
  *   width: 200,
@@ -53,7 +53,7 @@ export interface StatusBarConfig {
  * this.hpBar.setValueFromNumbers(75, 100); // 75/100
  * ```
  */
-export class StatusBar extends Phaser.GameObjects.Container {
+export class StatusBarUIComponent extends Phaser.GameObjects.Container {
   private config: Required<StatusBarConfig>;
 
   // グラフィック要素
@@ -250,3 +250,6 @@ export class StatusBar extends Phaser.GameObjects.Container {
     super.destroy(fromScene);
   }
 }
+
+// 後方互換性のためのエイリアス
+export { StatusBarUIComponent as StatusBar };
