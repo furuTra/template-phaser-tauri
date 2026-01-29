@@ -64,11 +64,11 @@ export class Settings extends Phaser.Scene {
     new Button(this, {
       x: 150,
       y: fullscreenY + 60,
-      text: '← Back to Game',
+      text: '← Back to Title',
       backgroundColor: '#333333',
       hoverColor: '#777777',
       padding: { x: 10, y: 5 },
-      onClick: () => this.scene.start('Game'),
+      onClick: () => this.scene.start('Title'),
     });
   }
 

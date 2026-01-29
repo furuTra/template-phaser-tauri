@@ -21,7 +21,7 @@ export class Head extends Phaser.Scene {
 		).disableContextMenu();
 
 		// start menu scene
-		this.scene.launch("Game", { sceneHead: this });
+		this.scene.launch("Title", { sceneHead: this });
 	}
 
 	update() {}

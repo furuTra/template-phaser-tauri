@@ -31,7 +31,7 @@ export class SaveSlotsOverlay extends Phaser.Scene {
    * 初期化時に親シーンのキーを受け取る
    */
   init(data: { parentSceneKey?: string }) {
-    this.parentSceneKey = data.parentSceneKey || 'Game';
+    this.parentSceneKey = data.parentSceneKey || 'Title';
     this.saveManager = SaveDataManager.getInstance();
   }
 

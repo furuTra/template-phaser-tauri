@@ -5,7 +5,7 @@ import Phaser from "phaser";
 import config from "@/config";
 
 // scenes
-import { Game } from "@/scenes/Game";
+import { Title } from "@/scenes/Title";
 import { PlayScene } from "@/scenes/PlayScene";
 import { PlayScene2 } from "@/scenes/PlayScene2";
 import { Settings } from "@/scenes/Settings";
@@ -23,7 +23,7 @@ new Phaser.Game(
 			Boot,
 			Load,
 			Head,
-			Game,
+			Title,
 			PlayScene,
 			PlayScene2,
 			Settings,

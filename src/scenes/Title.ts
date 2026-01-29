@@ -11,7 +11,7 @@ import { Core } from "@/scenes/internal/Core";
 // manager
 import { SaveDataManager } from "@/lib/cache/SaveDataManager";
 
-export class Game extends Core {
+export class Title extends Core {
 	// input
 	keySHIFT!: Phaser.Input.Keyboard.Key;
 
@@ -19,7 +19,7 @@ export class Game extends Core {
 	private saveManager!: SaveDataManager;
 
 	constructor() {
-		super({ key: "Game" });
+		super({ key: "Title" });
 	}
 
 	init(data: sceneData) {
@@ -54,27 +54,6 @@ export class Game extends Core {
 		// scale background to game size
 		background.displayWidth = this.game.scale.width;
 		background.scaleY = background.scaleX;
-
-		// create particle emitter
-		const particles = this.add.particles(0, 0, 'particle_red', {
-			speed: 100,
-			scale: { start: background.scaleX, end: 0 },
-			blendMode: 'ADD',
-			maxParticles: 50,
-			lifespan: 1000,
-			frequency: 50,
-		});
-
-		// add phaser 3 logo to the center of the canvas
-		const logo = this.physics.add.image(this.game.scale.width / 2, this.game.scale.height / 2, 'logo').setScale(background.scaleX);
-
-		// make logo move
-		logo.setVelocity(100, 200);
-		logo.setBounce(1, 1);
-		logo.setCollideWorldBounds(true);
-
-		// make particles follow logo
-		particles.startFollow(logo);
 	}
 
 	private createUI() {
@@ -140,7 +119,7 @@ export class Game extends Core {
 			slotIndex: number;
 			gameData: GameData;
 		}) => {
-			console.log('Save slot selected in Game:', data);
+			console.log('Save slot selected in Title:', data);
 			console.log('Current game data:', this.saveManager.getCurrentGameData());
 
 			// 選択されたセーブデータでPlaySceneへ遷移
@@ -148,7 +127,7 @@ export class Game extends Core {
 		});
 
 		// オーバーレイを起動
-		this.scene.launch('SaveSlotsOverlay', { parentSceneKey: 'Game' });
+		this.scene.launch('SaveSlotsOverlay', { parentSceneKey: 'Title' });
 	}
 
 	update() { }

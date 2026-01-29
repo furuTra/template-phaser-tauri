@@ -274,7 +274,7 @@ export abstract class PlayableScene extends Core {
     // デフォルトではタイトルに戻る
     console.log('Player died!');
     this.destroyControllers();
-    this.scene.start('Game', { sceneHead: this.sceneHead });
+    this.scene.start('Title', { sceneHead: this.sceneHead });
   }
 
   /**
@@ -284,7 +284,7 @@ export abstract class PlayableScene extends Core {
     this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
       .on('down', () => {
         this.destroyControllers();
-        this.scene.start('Game', { sceneHead: this.sceneHead });
+        this.scene.start('Title', { sceneHead: this.sceneHead });
       });
   }
 
