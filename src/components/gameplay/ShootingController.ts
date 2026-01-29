@@ -227,8 +227,8 @@ export class ShootingController {
       targetX, targetY
     );
 
-    // 3方向の角度オフセット（-20度、0度、+20度）
-    const spreadAngles = [-20, 0, 20];
+    // 3方向の角度オフセット（-10度、0度、+10度）
+    const spreadAngles = [-10, 0, 10];
     const weapon = this.getEquippedWeapon();
 
     for (const offsetDeg of spreadAngles) {
