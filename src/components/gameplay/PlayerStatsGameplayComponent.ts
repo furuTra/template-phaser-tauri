@@ -4,12 +4,28 @@ import Phaser from 'phaser';
 import type { PlayerStatsConfig } from '@/types/Character/Player';
 import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
 
+// events
+import {
+  PLAYER_EVENTS,
+  type PlayerHpChangedData,
+  type PlayerMpChangedData,
+  type PlayerStatsChangedData,
+  type PlayerExpChangedData,
+  type PlayerLevelUpData,
+  type PlayerWeaponChangedData,
+} from '@/events';
+
+// PlayableSceneの型（循環参照回避）
+interface PlayableSceneLike {
+  getPlayableSceneEvents(): Phaser.Events.EventEmitter;
+}
+
 // 型定義を再エクスポート（後方互換性のため）
 export type { PlayerStatsConfig } from '@/types/Character/Player';
 
 /**
  * プレイヤーステータス管理コンポーネント
- * HP/MP/攻撃力/防御力などの状態を管理し、イベント経由で変更を通知する
+ * HP/MP/攻撃力/防御力などの状態を管理し、sceneEvents経由で変更を通知する
  * 
  * game-object.md の Player 仕様に準拠
  * 
@@ -18,11 +34,11 @@ export type { PlayerStatsConfig } from '@/types/Character/Player';
  * // create()で初期化
  * this.playerStats = new PlayerStatsGameplayComponent(this, { maxHp: 100, maxMp: 100 });
  * 
- * // イベントリスナー登録
- * this.playerStats.on('hpChange', (hp, maxHp) => { ... });
- * this.playerStats.on('mpChange', (mp, maxMp) => { ... });
- * this.playerStats.on('death', () => { ... });
- * this.playerStats.on('levelUp', (newLevel) => { ... });
+ * // イベントリスナー登録（sceneEvents経由）
+ * this.sceneEvents.on(PLAYER_EVENTS.HP_CHANGED, (data) => { ... });
+ * this.sceneEvents.on(PLAYER_EVENTS.MP_CHANGED, (data) => { ... });
+ * this.sceneEvents.on(PLAYER_EVENTS.DEATH, () => { ... });
+ * this.sceneEvents.on(PLAYER_EVENTS.LEVEL_UP, (data) => { ... });
  * 
  * // update()でMP自動回復を更新
  * this.playerStats.update(delta);
@@ -37,7 +53,7 @@ export type { PlayerStatsConfig } from '@/types/Character/Player';
  * const damage = this.playerStats.calculateDamage(enemyDefense);
  * ```
  */
-export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
+export class PlayerStatsGameplayComponent {
   // === HP関連 ===
   private hp: number;
   private maxHp: number;
@@ -60,12 +76,19 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
   // === 武器関連 ===
   private equippedWeapon: RangedWeapon | null = null;
 
+  // === イベント ===
+  /** PlayableSceneスコープのイベントエミッター（オプショナル） */
+  private sceneEvents?: Phaser.Events.EventEmitter;
+
   /**
-   * @param _scene 所属するシーン（将来の拡張用）
+   * @param scene 所属するシーン
    * @param config 設定オプション
    */
-  constructor(_scene: Phaser.Scene, config: PlayerStatsConfig = {}) {
-    super();
+  constructor(scene: Phaser.Scene, config: PlayerStatsConfig = {}) {
+    // PlayableSceneの場合、sceneEventsを取得
+    if ('getPlayableSceneEvents' in scene) {
+      this.sceneEvents = (scene as PlayableSceneLike).getPlayableSceneEvents();
+    }
 
     // HP初期化
     this.maxHp = config.maxHp ?? 100;
@@ -124,10 +147,14 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
     this.hp = Phaser.Math.Clamp(value, 0, this.maxHp);
 
     if (this.hp !== oldHp) {
-      this.emit('hpChange', this.hp, this.maxHp);
+      // sceneEventsへ発火
+      if (this.sceneEvents) {
+        const data: PlayerHpChangedData = { hp: this.hp, maxHp: this.maxHp };
+        this.sceneEvents.emit(PLAYER_EVENTS.HP_CHANGED, data);
+      }
 
       if (this.hp <= 0) {
-        this.emit('death');
+        this.sceneEvents?.emit(PLAYER_EVENTS.DEATH);
       }
     }
   }
@@ -198,7 +225,11 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
     this.mp = Phaser.Math.Clamp(value, 0, this.maxMp);
 
     if (this.mp !== oldMp) {
-      this.emit('mpChange', this.mp, this.maxMp);
+      // sceneEventsへ発火
+      if (this.sceneEvents) {
+        const data: PlayerMpChangedData = { mp: this.mp, maxMp: this.maxMp };
+        this.sceneEvents.emit(PLAYER_EVENTS.MP_CHANGED, data);
+      }
     }
   }
 
@@ -284,7 +315,11 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
    */
   setAttack(value: number): void {
     this.attack = Math.max(0, value);
-    this.emit('statsChange', 'attack', this.attack);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const data: PlayerStatsChangedData = { statName: 'attack', value: this.attack };
+      this.sceneEvents.emit(PLAYER_EVENTS.STATS_CHANGED, data);
+    }
   }
 
   /**
@@ -299,7 +334,11 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
    */
   setDefense(value: number): void {
     this.defense = Math.max(0, value);
-    this.emit('statsChange', 'defense', this.defense);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const data: PlayerStatsChangedData = { statName: 'defense', value: this.defense };
+      this.sceneEvents.emit(PLAYER_EVENTS.STATS_CHANGED, data);
+    }
   }
 
   /**
@@ -314,7 +353,11 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
    */
   setSpeed(value: number): void {
     this.speed = Math.max(0, value);
-    this.emit('statsChange', 'speed', this.speed);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const data: PlayerStatsChangedData = { statName: 'speed', value: this.speed };
+      this.sceneEvents.emit(PLAYER_EVENTS.STATS_CHANGED, data);
+    }
   }
 
   /**
@@ -348,7 +391,11 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
    */
   addExp(amount: number): void {
     this.exp += amount;
-    this.emit('expChange', this.exp);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const data: PlayerExpChangedData = { exp: this.exp };
+      this.sceneEvents.emit(PLAYER_EVENTS.EXP_CHANGED, data);
+    }
     
     // レベルアップチェック（簡易的な計算: 100 * level で次のレベル）
     const expForNextLevel = this.level * 100;
@@ -374,9 +421,17 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
     this.hp = this.maxHp;
     this.mp = this.maxMp;
 
-    this.emit('levelUp', this.level);
-    this.emit('hpChange', this.hp, this.maxHp);
-    this.emit('mpChange', this.mp, this.maxMp);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const levelData: PlayerLevelUpData = { level: this.level };
+      this.sceneEvents.emit(PLAYER_EVENTS.LEVEL_UP, levelData);
+
+      const hpData: PlayerHpChangedData = { hp: this.hp, maxHp: this.maxHp };
+      this.sceneEvents.emit(PLAYER_EVENTS.HP_CHANGED, hpData);
+
+      const mpData: PlayerMpChangedData = { mp: this.mp, maxMp: this.maxMp };
+      this.sceneEvents.emit(PLAYER_EVENTS.MP_CHANGED, mpData);
+    }
   }
 
   // === ユーティリティメソッド ===
@@ -387,8 +442,14 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
   reset(): void {
     this.hp = this.maxHp;
     this.mp = this.maxMp;
-    this.emit('hpChange', this.hp, this.maxHp);
-    this.emit('mpChange', this.mp, this.maxMp);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const hpData: PlayerHpChangedData = { hp: this.hp, maxHp: this.maxHp };
+      this.sceneEvents.emit(PLAYER_EVENTS.HP_CHANGED, hpData);
+
+      const mpData: PlayerMpChangedData = { mp: this.mp, maxMp: this.maxMp };
+      this.sceneEvents.emit(PLAYER_EVENTS.MP_CHANGED, mpData);
+    }
   }
 
   /**
@@ -426,7 +487,11 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
    */
   equipWeapon(weapon: RangedWeapon): void {
     this.equippedWeapon = weapon;
-    this.emit('weaponChange', weapon);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const data: PlayerWeaponChangedData = { weaponId: weapon.id };
+      this.sceneEvents.emit(PLAYER_EVENTS.WEAPON_CHANGED, data);
+    }
   }
 
   /**
@@ -434,7 +499,11 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
    */
   unequipWeapon(): void {
     this.equippedWeapon = null;
-    this.emit('weaponChange', null);
+    // sceneEventsへ発火
+    if (this.sceneEvents) {
+      const data: PlayerWeaponChangedData = { weaponId: null };
+      this.sceneEvents.emit(PLAYER_EVENTS.WEAPON_CHANGED, data);
+    }
   }
 
   /**
@@ -477,9 +546,6 @@ export class PlayerStatsGameplayComponent extends Phaser.Events.EventEmitter {
    * 破棄
    */
   destroy(): void {
-    this.removeAllListeners();
+    // sceneEventsのremoveAllListenersはPlayableScene側で行う
   }
 }
-
-// 後方互換性のためのエイリアス
-export { PlayerStatsGameplayComponent as PlayerStats };

@@ -4,6 +4,13 @@ import store from "storejs";
 
 // types
 import type { sceneData, StartPosition } from "@/types/global";
+
+// events
+import {
+  PLAYER_EVENTS,
+  type PlayerHpChangedData,
+  type PlayerMpChangedData,
+} from "@/events";
 import type { PlayerStatsConfig } from "@/types/Character/Player";
 
 // internal
@@ -56,6 +63,9 @@ type PhysicsPlayer = Phaser.GameObjects.GameObject &
  * プレイヤー生成、移動コントローラー、デバッグ機能などを共通化
  */
 export abstract class PlayableScene extends Core {
+  // PlayableSceneスコープのイベントエミッター
+  protected sceneEvents: Phaser.Events.EventEmitter = new Phaser.Events.EventEmitter();
+
   // Input
   protected keySHIFT!: Phaser.Input.Keyboard.Key;
 
@@ -150,14 +160,20 @@ export abstract class PlayableScene extends Core {
     // プレイヤーステータスを初期化
     this.playerStats = new PlayerStatsGameplayComponent(this, this.config.playerStatsConfig);
 
-    // HP/MP変化時のイベントリスナーを設定
-    this.playerStats.on('hpChange', (hp: number, maxHp: number) => {
-      this.hpBar?.setValueFromNumbers(hp, maxHp);
-    });
-    this.playerStats.on('mpChange', (mp: number, maxMp: number) => {
-      this.mpBar?.setValueFromNumbers(mp, maxMp);
-    });
-    this.playerStats.on('death', () => {
+    // HP/MP変化時のイベントリスナーを設定（sceneEvents経由）
+    this.sceneEvents.on(
+      PLAYER_EVENTS.HP_CHANGED,
+      (data: PlayerHpChangedData) => {
+        this.hpBar?.setValueFromNumbers(data.hp, data.maxHp);
+      }
+    );
+    this.sceneEvents.on(
+      PLAYER_EVENTS.MP_CHANGED,
+      (data: PlayerMpChangedData) => {
+        this.mpBar?.setValueFromNumbers(data.mp, data.maxMp);
+      }
+    );
+    this.sceneEvents.on(PLAYER_EVENTS.DEATH, () => {
       this.handlePlayerDeath();
     });
 
@@ -296,6 +312,16 @@ export abstract class PlayableScene extends Core {
     this.playerController.destroy();
     this.shootingController?.destroy();
     this.playerStats?.destroy();
+    // sceneEventsのリスナーをすべて解除
+    this.sceneEvents.removeAllListeners();
+  }
+
+  /**
+   * PlayableSceneスコープのイベントエミッターを取得
+   * コンポーネントからイベントを発火する際に使用
+   */
+  getPlayableSceneEvents(): Phaser.Events.EventEmitter {
+    return this.sceneEvents;
   }
 
   /**
