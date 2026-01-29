@@ -101,6 +101,9 @@ export class PlayScene extends PlayableScene {
     // ステータス表示
     this.createStatusUI();
 
+    // 発射モード表示
+    this.createShootingModeText();
+
     // 右端への案内
     this.add.text(this.scale.width - 200, this.scale.height - 40, '右端で次のシーンへ →', {
       fontSize: '14px',

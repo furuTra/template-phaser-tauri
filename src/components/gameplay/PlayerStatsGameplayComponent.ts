@@ -256,6 +256,14 @@ export class PlayerStatsGameplayComponent {
   }
 
   /**
+   * 指定したコストで射撃可能かどうか
+   * @param cost MP消費量
+   */
+  canShootWithCost(cost: number): boolean {
+    return this.mp >= cost;
+  }
+
+  /**
    * 射撃のためのMPを消費
    * 武器が装備されている場合は武器のmpCostを使用
    * @returns 消費できたかどうか

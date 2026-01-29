@@ -21,6 +21,7 @@ import { TopDownController } from "@/components/gameplay/TopDownController";
 import { ShootingController, ShootingControllerConfig } from "@/components/gameplay/ShootingController";
 import { PlayerStatsGameplayComponent } from "@/components/gameplay/PlayerStatsGameplayComponent";
 import { StatusBarUIComponent } from "@/components/ui/StatusBarUIComponent";
+import { WeaponSelectModalUIComponent, ShootingMode } from "@/components/ui/WeaponSelectModalUIComponent";
 
 // manager
 import { SaveDataManager } from "@/lib/cache/SaveDataManager";
@@ -68,6 +69,7 @@ export abstract class PlayableScene extends Core {
 
   // Input
   protected keySHIFT!: Phaser.Input.Keyboard.Key;
+  protected keyZ?: Phaser.Input.Keyboard.Key;
 
   // Player（物理ボディと位置を持つGameObject）
   protected player!: PhysicsPlayer;
@@ -76,6 +78,10 @@ export abstract class PlayableScene extends Core {
 
   // Shooting
   protected shootingController?: ShootingController;
+
+  // UI
+  protected weaponSelectModal?: WeaponSelectModalUIComponent;
+  protected shootingModeText?: Phaser.GameObjects.Text;
 
   // Manager
   protected saveManager!: SaveDataManager;
@@ -278,14 +284,106 @@ export abstract class PlayableScene extends Core {
   }
 
   /**
-   * 共通入力を設定（ESCキーでタイトルへ戻る）
+   * 共通入力を設定（ESCキーでタイトルへ戻る、Zキーで発射モード選択）
    */
   protected setupCommonInput(): void {
     this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
       .on('down', () => {
+        // モーダル表示中は閉じるだけ
+        if (this.weaponSelectModal?.getIsVisible()) {
+          return;
+        }
         this.destroyControllers();
         this.scene.start('Title', { sceneHead: this.sceneHead });
       });
+
+    // Zキーで発射モード選択モーダルを表示
+    this.keyZ = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    this.keyZ?.on('down', () => {
+      this.toggleWeaponSelectModal();
+    });
+  }
+
+  /**
+   * 発射モード選択モーダルを作成
+   */
+  protected createWeaponSelectModal(): void {
+    if (!this.shootingController) return;
+
+    this.weaponSelectModal = new WeaponSelectModalUIComponent(this, {
+      modes: this.shootingController.getShootingModes(),
+      onSelect: (mode: ShootingMode) => {
+        this.onShootingModeSelected(mode);
+      },
+      onCancel: () => {
+        this.onWeaponSelectModalClosed();
+      },
+    });
+
+    // 現在のモードを選択状態にする
+    this.weaponSelectModal.setSelectedIndex(this.shootingController.getCurrentModeIndex());
+  }
+
+  /**
+   * 発射モード選択モーダルの表示切替
+   */
+  protected toggleWeaponSelectModal(): void {
+    if (!this.weaponSelectModal) {
+      this.createWeaponSelectModal();
+    }
+
+    if (this.weaponSelectModal?.getIsVisible()) {
+      this.weaponSelectModal.hide();
+      this.onWeaponSelectModalClosed();
+    } else {
+      this.weaponSelectModal?.show();
+      // モーダル表示中は射撃を無効化
+      this.shootingController?.setEnabled(false);
+      this.playerController?.disable();
+    }
+  }
+
+  /**
+   * 発射モードが選択されたときの処理
+   */
+  protected onShootingModeSelected(mode: ShootingMode): void {
+    this.shootingController?.setShootingMode(mode);
+    this.updateShootingModeText();
+    this.onWeaponSelectModalClosed();
+  }
+
+  /**
+   * 発射モード選択モーダルが閉じられたときの処理
+   */
+  protected onWeaponSelectModalClosed(): void {
+    // 射撃と移動を再有効化
+    this.shootingController?.setEnabled(true);
+    this.playerController?.enable();
+  }
+
+  /**
+   * 発射モード表示テキストを作成
+   */
+  protected createShootingModeText(): void {
+    const currentMode = this.shootingController?.getCurrentMode();
+    this.shootingModeText = this.add.text(
+      this.scale.width - 200,
+      20,
+      `発射: ${currentMode?.name ?? '単発'} [Z]`,
+      {
+        fontSize: '14px',
+        color: '#88ff88',
+        fontFamily: 'Roboto',
+      }
+    );
+  }
+
+  /**
+   * 発射モード表示テキストを更新
+   */
+  protected updateShootingModeText(): void {
+    const currentMode = this.shootingController?.getCurrentMode();
+    this.shootingModeText?.setText(`発射: ${currentMode?.name ?? '単発'} [Z]`);
   }
 
   /**
@@ -312,6 +410,8 @@ export abstract class PlayableScene extends Core {
     this.playerController.destroy();
     this.shootingController?.destroy();
     this.playerStats?.destroy();
+    this.weaponSelectModal?.destroy();
+    this.weaponSelectModal = undefined;
     // sceneEventsのリスナーをすべて解除
     this.sceneEvents.removeAllListeners();
   }

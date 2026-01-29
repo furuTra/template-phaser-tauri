@@ -2,6 +2,27 @@ import Phaser from 'phaser';
 import { BulletPool, BulletPoolConfig } from '@/components/gameplay/BulletPool';
 import { PlayerStatsGameplayComponent } from '@/components/gameplay/PlayerStatsGameplayComponent';
 import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
+import type { ShootingMode } from '@/components/ui/WeaponSelectModalUIComponent';
+
+/**
+ * デフォルトの発射モード定義
+ */
+export const DEFAULT_SHOOTING_MODES: ShootingMode[] = [
+  {
+    id: 'single',
+    name: '単発',
+    description: '通常の射撃',
+    mpCost: 15,
+    fireRate: 100,
+  },
+  {
+    id: 'triple',
+    name: '3方向',
+    description: '3方向に同時発射',
+    mpCost: 30,
+    fireRate: 300,
+  },
+];
 
 /**
  * 射撃コントローラーの設定
@@ -13,6 +34,8 @@ export interface ShootingControllerConfig {
   bulletPoolConfig?: BulletPoolConfig;
   /** プレイヤーステータス（MP消費・武器参照に使用、オプション） */
   playerStats?: PlayerStatsGameplayComponent;
+  /** 利用可能な発射モード */
+  shootingModes?: ShootingMode[];
 }
 
 /**
@@ -48,6 +71,10 @@ export class ShootingController {
   private defaultFireRate: number;
   private lastFireTime: number = 0;
 
+  // 発射モード管理
+  private shootingModes: ShootingMode[];
+  private currentModeIndex: number = 0;
+
   // 有効フラグ
   private enabled: boolean = true;
 
@@ -66,15 +93,19 @@ export class ShootingController {
     this.defaultFireRate = config.fireRate ?? 100;
     this.playerStats = config.playerStats;
 
+    // 発射モードを初期化
+    this.shootingModes = config.shootingModes ?? DEFAULT_SHOOTING_MODES;
+
     // 弾プールを作成
     this.bulletPool = new BulletPool(scene, config.bulletPoolConfig);
   }
 
   /**
-   * 現在の連射間隔を取得（武器優先）
+   * 現在の連射間隔を取得（発射モード優先、次に武器、最後にデフォルト）
    */
   private getEffectiveFireRate(): number {
-    return this.playerStats?.getFireRate() ?? this.defaultFireRate;
+    const currentMode = this.getCurrentMode();
+    return currentMode.fireRate ?? this.playerStats?.getFireRate() ?? this.defaultFireRate;
   }
 
   /**
@@ -107,34 +138,40 @@ export class ShootingController {
    * @param time 現在時間
    */
   private tryFire(time: number): void {
-    // 連射間隔チェック（武器の cooldown を使用）
+    // 連射間隔チェック（発射モードまたは武器の cooldown を使用）
     const fireRate = this.getEffectiveFireRate();
     if (time - this.lastFireTime < fireRate) {
       return;
     }
 
     // MP消費チェック（PlayerStatsが設定されている場合）
+    const currentMode = this.getCurrentMode();
+    const mpCost = currentMode.mpCost;
     if (this.playerStats) {
-      if (!this.playerStats.canShoot()) {
+      if (!this.playerStats.canShootWithCost(mpCost)) {
         return; // MP不足で発射不可
       }
-      this.playerStats.consumeMpForShot();
+      this.playerStats.consumeMp(mpCost);
     }
 
     const pointer = this.scene.input.activePointer;
-    const weapon = this.getEquippedWeapon();
 
-    // 武器が装備されている場合は武器設定で発射
-    if (weapon) {
-      this.fireWithWeapon(weapon, pointer.worldX, pointer.worldY);
+    // 発射モードに応じて発射
+    if (currentMode.id === 'triple') {
+      this.fireTriple(pointer.worldX, pointer.worldY);
     } else {
-      // 武器なしの場合はデフォルト発射
-      this.bulletPool.fire(
-        this.shooter.x,
-        this.shooter.y,
-        pointer.worldX,
-        pointer.worldY
-      );
+      // 単発モード（既存の処理）
+      const weapon = this.getEquippedWeapon();
+      if (weapon) {
+        this.fireWithWeapon(weapon, pointer.worldX, pointer.worldY);
+      } else {
+        this.bulletPool.fire(
+          this.shooter.x,
+          this.shooter.y,
+          pointer.worldX,
+          pointer.worldY
+        );
+      }
     }
 
     this.lastFireTime = time;
@@ -182,6 +219,51 @@ export class ShootingController {
   }
 
   /**
+   * 3方向に弾を発射
+   */
+  private fireTriple(targetX: number, targetY: number): void {
+    const baseAngle = Phaser.Math.Angle.Between(
+      this.shooter.x, this.shooter.y,
+      targetX, targetY
+    );
+
+    // 3方向の角度オフセット（-20度、0度、+20度）
+    const spreadAngles = [-20, 0, 20];
+    const weapon = this.getEquippedWeapon();
+
+    for (const offsetDeg of spreadAngles) {
+      const offsetRad = Phaser.Math.DegToRad(offsetDeg);
+      const finalAngle = baseAngle + offsetRad;
+      const distance = 1000;
+      const finalTargetX = this.shooter.x + Math.cos(finalAngle) * distance;
+      const finalTargetY = this.shooter.y + Math.sin(finalAngle) * distance;
+
+      if (weapon) {
+        this.bulletPool.fireWithConfig(
+          this.shooter.x,
+          this.shooter.y,
+          finalTargetX,
+          finalTargetY,
+          {
+            width: weapon.bulletWidth,
+            height: weapon.bulletHeight,
+            color: weapon.bulletColor,
+            speed: weapon.velocity.initialSpeed,
+            lifespan: (weapon.range / weapon.velocity.initialSpeed) * 1000,
+          }
+        );
+      } else {
+        this.bulletPool.fire(
+          this.shooter.x,
+          this.shooter.y,
+          finalTargetX,
+          finalTargetY
+        );
+      }
+    }
+  }
+
+  /**
    * 手動で射撃
    * @param targetX 目標X座標
    * @param targetY 目標Y座標
@@ -214,6 +296,50 @@ export class ShootingController {
    */
   isEnabled(): boolean {
     return this.enabled;
+  }
+
+  // === 発射モード管理 ===
+
+  /**
+   * 利用可能な発射モード一覧を取得
+   */
+  getShootingModes(): ShootingMode[] {
+    return this.shootingModes;
+  }
+
+  /**
+   * 現在の発射モードを取得
+   */
+  getCurrentMode(): ShootingMode {
+    return this.shootingModes[this.currentModeIndex];
+  }
+
+  /**
+   * 現在の発射モードインデックスを取得
+   */
+  getCurrentModeIndex(): number {
+    return this.currentModeIndex;
+  }
+
+  /**
+   * 発射モードを設定
+   * @param mode 設定する発射モード
+   */
+  setShootingMode(mode: ShootingMode): void {
+    const index = this.shootingModes.findIndex(m => m.id === mode.id);
+    if (index !== -1) {
+      this.currentModeIndex = index;
+    }
+  }
+
+  /**
+   * 発射モードをインデックスで設定
+   * @param index モードインデックス
+   */
+  setShootingModeByIndex(index: number): void {
+    if (index >= 0 && index < this.shootingModes.length) {
+      this.currentModeIndex = index;
+    }
   }
 
   /**
