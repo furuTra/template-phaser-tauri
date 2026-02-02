@@ -1,12 +1,26 @@
 import Phaser from 'phaser';
 import { Bullet, BulletConfig, DEFAULT_BULLET_CONFIG } from '@/components/gameplay/Bullet';
-import {
-  BulletFireFactory,
-  BulletTypeId,
-  FireResult,
-  createBulletConfigFromWeapon,
-} from '@/components/gameplay/BulletTypes';
+import { SingleBullet } from '@/components/gameplay/bullets/SingleBullet';
+import { TripleBullet } from '@/components/gameplay/bullets/TripleBullet';
+import { SpreadBullet } from '@/components/gameplay/bullets/SpreadBullet';
+import { RapidBullet } from '@/components/gameplay/bullets/RapidBullet';
+import { HeavyBullet } from '@/components/gameplay/bullets/HeavyBullet';
+import { BulletFireFactory, createBulletConfigFromWeapon } from '@/components/gameplay/BulletFireFactory';
+import type { BulletTypeId, FireResult } from '@/components/gameplay/BulletTypes';
 import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
+
+/**
+ * BulletTypeIdからBulletクラスを取得するマップ
+ */
+type BulletConstructor = new (scene: Phaser.Scene, x: number, y: number, config?: BulletConfig) => Bullet;
+
+const BULLET_CLASS_MAP: Record<BulletTypeId, BulletConstructor> = {
+  single: SingleBullet,
+  triple: TripleBullet,
+  spread: SpreadBullet,
+  rapid: RapidBullet,
+  heavy: HeavyBullet,
+};
 
 /**
  * 弾プールの設定
@@ -16,6 +30,8 @@ export interface BulletPoolConfig {
   maxBullets?: number;
   /** 弾の設定 */
   bulletConfig?: BulletConfig;
+  /** 使用する弾の種類（デフォルト: 'single'） */
+  bulletType?: BulletTypeId;
 }
 
 /**
@@ -24,16 +40,19 @@ export interface BulletPoolConfig {
  */
 export class BulletPool extends Phaser.GameObjects.Group {
   private bulletConfig: BulletConfig;
+  private bulletType: BulletTypeId;
 
   constructor(scene: Phaser.Scene, config: BulletPoolConfig = {}) {
     super(scene);
 
     const maxBullets = config.maxBullets ?? 50;
     this.bulletConfig = config.bulletConfig ?? { ...DEFAULT_BULLET_CONFIG };
+    this.bulletType = config.bulletType ?? 'single';
 
-    // 弾を事前生成
+    // 指定された弾種で弾を事前生成
+    const BulletClass = BULLET_CLASS_MAP[this.bulletType];
     for (let i = 0; i < maxBullets; i++) {
-      const bullet = new Bullet(scene, -100, -100, this.bulletConfig);
+      const bullet = new BulletClass(scene, -100, -100, this.bulletConfig);
       bullet.deactivate();
       this.add(bullet);
     }
@@ -43,7 +62,7 @@ export class BulletPool extends Phaser.GameObjects.Group {
    * 非アクティブな弾を取得
    * @returns 利用可能な弾、または null
    */
-  private getAvailableBullet(): Bullet | null {
+  getAvailableBullet(): Bullet | null {
     return this.getFirstDead(false) as Bullet | null;
   }
 
@@ -232,5 +251,12 @@ export class BulletPool extends Phaser.GameObjects.Group {
    */
   getBulletConfig(): BulletConfig {
     return { ...this.bulletConfig };
+  }
+
+  /**
+   * プールの弾種を取得
+   */
+  getBulletType(): BulletTypeId {
+    return this.bulletType;
   }
 }
