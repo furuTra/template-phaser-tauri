@@ -97,7 +97,7 @@ export class PlayerStatsGameplayComponent {
     // MP初期化
     this.maxMp = config.maxMp ?? 100;
     this.mp = config.initialMp ?? this.maxMp;
-    this.mpRegenRate = config.mpRegenRate ?? 10;
+    this.mpRegenRate = config.mpRegenRate ?? 60;
     this.mpCostPerShot = config.mpCostPerShot ?? 15;
 
     // 戦闘ステータス初期化

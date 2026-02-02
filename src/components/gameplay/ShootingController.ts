@@ -22,6 +22,13 @@ export const DEFAULT_SHOOTING_MODES: ShootingMode[] = [
     mpCost: 30,
     fireRate: 300,
   },
+  {
+    id: 'spread',
+    name: '拡散',
+    description: '5方向に拡散発射',
+    mpCost: 50,
+    fireRate: 400,
+  },
 ];
 
 /**
@@ -155,112 +162,19 @@ export class ShootingController {
     }
 
     const pointer = this.scene.input.activePointer;
-
-    // 発射モードに応じて発射
-    if (currentMode.id === 'triple') {
-      this.fireTriple(pointer.worldX, pointer.worldY);
-    } else {
-      // 単発モード（既存の処理）
-      const weapon = this.getEquippedWeapon();
-      if (weapon) {
-        this.fireWithWeapon(weapon, pointer.worldX, pointer.worldY);
-      } else {
-        this.bulletPool.fire(
-          this.shooter.x,
-          this.shooter.y,
-          pointer.worldX,
-          pointer.worldY
-        );
-      }
-    }
-
-    this.lastFireTime = time;
-  }
-
-  /**
-   * 武器設定で弾を発射
-   */
-  private fireWithWeapon(weapon: RangedWeapon, targetX: number, targetY: number): void {
-    const baseAngle = Phaser.Math.Angle.Between(
-      this.shooter.x, this.shooter.y,
-      targetX, targetY
-    );
-
-    // 同時発射数分ループ
-    for (let i = 0; i < weapon.simultaneousShots; i++) {
-      // 角度オフセットを計算（中央を基準に左右に拡散）
-      let angleOffset = 0;
-      if (weapon.simultaneousShots > 1) {
-        const totalSpread = Phaser.Math.DegToRad(weapon.angleOffset * 2);
-        const step = totalSpread / (weapon.simultaneousShots - 1);
-        angleOffset = -totalSpread / 2 + step * i;
-      }
-
-      const finalAngle = baseAngle + angleOffset;
-      const distance = 1000; // 十分な距離
-      const finalTargetX = this.shooter.x + Math.cos(finalAngle) * distance;
-      const finalTargetY = this.shooter.y + Math.sin(finalAngle) * distance;
-
-      // 武器の弾設定で発射
-      this.bulletPool.fireWithConfig(
-        this.shooter.x,
-        this.shooter.y,
-        finalTargetX,
-        finalTargetY,
-        {
-          width: weapon.bulletWidth,
-          height: weapon.bulletHeight,
-          color: weapon.bulletColor,
-          speed: weapon.velocity.initialSpeed,
-          lifespan: (weapon.range / weapon.velocity.initialSpeed) * 1000,
-        }
-      );
-    }
-  }
-
-  /**
-   * 3方向に弾を発射
-   */
-  private fireTriple(targetX: number, targetY: number): void {
-    const baseAngle = Phaser.Math.Angle.Between(
-      this.shooter.x, this.shooter.y,
-      targetX, targetY
-    );
-
-    // 3方向の角度オフセット（-10度、0度、+10度）
-    const spreadAngles = [-10, 0, 10];
     const weapon = this.getEquippedWeapon();
 
-    for (const offsetDeg of spreadAngles) {
-      const offsetRad = Phaser.Math.DegToRad(offsetDeg);
-      const finalAngle = baseAngle + offsetRad;
-      const distance = 1000;
-      const finalTargetX = this.shooter.x + Math.cos(finalAngle) * distance;
-      const finalTargetY = this.shooter.y + Math.sin(finalAngle) * distance;
+    // 発射モードIDで発射（ShootingMode.idはBulletTypeId型）
+    this.bulletPool.fireByType(
+      currentMode.id,
+      this.shooter.x,
+      this.shooter.y,
+      pointer.worldX,
+      pointer.worldY,
+      weapon ?? undefined
+    );
 
-      if (weapon) {
-        this.bulletPool.fireWithConfig(
-          this.shooter.x,
-          this.shooter.y,
-          finalTargetX,
-          finalTargetY,
-          {
-            width: weapon.bulletWidth,
-            height: weapon.bulletHeight,
-            color: weapon.bulletColor,
-            speed: weapon.velocity.initialSpeed,
-            lifespan: (weapon.range / weapon.velocity.initialSpeed) * 1000,
-          }
-        );
-      } else {
-        this.bulletPool.fire(
-          this.shooter.x,
-          this.shooter.y,
-          finalTargetX,
-          finalTargetY
-        );
-      }
-    }
+    this.lastFireTime = time;
   }
 
   /**
@@ -270,11 +184,16 @@ export class ShootingController {
    */
   fireAt(targetX: number, targetY: number): void {
     const weapon = this.getEquippedWeapon();
-    if (weapon) {
-      this.fireWithWeapon(weapon, targetX, targetY);
-    } else {
-      this.bulletPool.fire(this.shooter.x, this.shooter.y, targetX, targetY);
-    }
+    const currentMode = this.getCurrentMode();
+
+    this.bulletPool.fireByType(
+      currentMode.id,
+      this.shooter.x,
+      this.shooter.y,
+      targetX,
+      targetY,
+      weapon ?? undefined
+    );
   }
 
   /**

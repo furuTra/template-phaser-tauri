@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import { Button } from '@/components/ui/Button';
+import type { BulletTypeId } from '@/components/gameplay/BulletTypes';
 
 /**
  * 発射モードの定義
  */
 export interface ShootingMode {
-  /** モードID */
-  id: string;
+  /** モードID（BulletTypeIdと対応） */
+  id: BulletTypeId;
   /** 表示名 */
   name: string;
   /** 説明 */
