@@ -21,6 +21,8 @@ import { TopDownController } from "@/components/gameplay/TopDownController";
 import { ShootingController, ShootingControllerConfig } from "@/components/gameplay/ShootingController";
 import { PlayerStatsGameplayComponent } from "@/components/gameplay/PlayerStatsGameplayComponent";
 import { TargetEffectGameplayComponent, TargetEffectConfig } from "@/components/gameplay/TargetEffectGameplayComponent";
+import { EnemyGameplayComponent } from "@/components/gameplay/EnemyGameplayComponent";
+import { Bullet } from "@/components/gameplay/Bullet";
 import { StatusBarUIComponent } from "@/components/ui/StatusBarUIComponent";
 import { WeaponSelectModalUIComponent, ShootingMode } from "@/components/ui/WeaponSelectModalUIComponent";
 
@@ -87,6 +89,9 @@ export abstract class PlayableScene extends Core {
   // Target Effect
   protected targetEffect?: TargetEffectGameplayComponent;
 
+  // Enemies
+  protected enemies!: Phaser.Physics.Arcade.Group;
+
   // UI
   protected weaponSelectModal?: WeaponSelectModalUIComponent;
   protected shootingModeText?: Phaser.GameObjects.Text;
@@ -137,6 +142,11 @@ export abstract class PlayableScene extends Core {
 
     // ターゲットエフェクトを更新
     this.targetEffect?.update(time, delta, this.player.x, this.player.y);
+
+    // 敵を更新（HPバーの位置追従）
+    this.enemies.getChildren().forEach((enemy) => {
+      (enemy as EnemyGameplayComponent).preUpdate();
+    });
   }
 
   /**
@@ -217,6 +227,15 @@ export abstract class PlayableScene extends Core {
         ...this.config.targetEffectConfig,
       });
     }
+
+    // 敵グループを作成（物理グループ）
+    this.enemies = this.physics.add.group();
+
+    // 弾と敵の衝突判定を設定
+    this.setupBulletEnemyCollision();
+
+    // プレイヤーと敵の衝突判定を設定
+    this.setupPlayerEnemyCollision();
   }
 
   /**
@@ -442,6 +461,68 @@ export abstract class PlayableScene extends Core {
     this.targetEffect = undefined;
     // sceneEventsのリスナーをすべて解除
     this.sceneEvents.removeAllListeners();
+  }
+
+  /**
+   * 弾と敵の衝突判定をセットアップ
+   */
+  protected setupBulletEnemyCollision(): void {
+    if (!this.shootingController) return;
+
+    const bulletPool = this.shootingController.getBulletPool();
+    
+    this.physics.add.overlap(
+      bulletPool,
+      this.enemies,
+      (bulletObj, enemyObj) => {
+        const bullet = bulletObj as Bullet;
+        const enemy = enemyObj as EnemyGameplayComponent;
+
+        // 弾を非アクティブ化
+        bullet.deactivate();
+
+        // 敵にダメージを与える（弾のダメージ量を取得）
+        const damage = bullet.getDamage?.() ?? 10;
+        enemy.takeDamage(damage);
+      },
+      // アクティブな弾と敵のみを処理
+      (bulletObj, enemyObj) => {
+        const bullet = bulletObj as Bullet;
+        const enemy = enemyObj as EnemyGameplayComponent;
+        return bullet.active && enemy.active;
+      },
+      this
+    );
+  }
+
+  /**
+   * プレイヤーと敵の衝突判定をセットアップ
+   */
+  protected setupPlayerEnemyCollision(): void {
+    this.physics.add.collider(this.player, this.enemies);
+  }
+
+  /**
+   * 敵を追加
+   * @param x X座標
+   * @param y Y座標
+   * @param config 敵の設定
+   * @returns 作成した敵
+   */
+  protected addEnemy(x: number, y: number, config?: import("@/components/gameplay/EnemyGameplayComponent").EnemyConfig): EnemyGameplayComponent {
+    const enemy = new EnemyGameplayComponent(this, x, y, config);
+    this.enemies.add(enemy);
+    return enemy;
+  }
+
+  /**
+   * 複数の敵を追加
+   * @param positions 敵の位置配列
+   * @param config 共通の敵設定
+   * @returns 作成した敵の配列
+   */
+  protected addEnemies(positions: { x: number; y: number }[], config?: import("@/components/gameplay/EnemyGameplayComponent").EnemyConfig): EnemyGameplayComponent[] {
+    return positions.map(pos => this.addEnemy(pos.x, pos.y, config));
   }
 
   /**

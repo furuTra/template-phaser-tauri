@@ -14,6 +14,8 @@ export interface BulletConfig {
   speed?: number;
   /** 弾の寿命（ミリ秒、デフォルト: 2000） */
   lifespan?: number;
+  /** 弾のダメージ量（デフォルト: 10） */
+  damage?: number;
 }
 
 /**
@@ -25,6 +27,7 @@ export const DEFAULT_BULLET_CONFIG: Required<BulletConfig> = {
   color: 0xffff00,
   speed: 500,
   lifespan: 2000,
+  damage: 10,
 };
 
 /**
@@ -34,6 +37,7 @@ export const DEFAULT_BULLET_CONFIG: Required<BulletConfig> = {
 export class Bullet extends Phaser.GameObjects.Rectangle {
   private speed: number;
   private lifespan: number;
+  private damage: number;
   private spawnTime: number = 0;
   private velocityX: number = 0;
   private velocityY: number = 0;
@@ -47,9 +51,15 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
 
     this.speed = config.speed ?? DEFAULT_BULLET_CONFIG.speed;
     this.lifespan = config.lifespan ?? DEFAULT_BULLET_CONFIG.lifespan;
+    this.damage = config.damage ?? DEFAULT_BULLET_CONFIG.damage;
 
     // シーンに追加
     scene.add.existing(this);
+
+    // 物理ボディを有効化
+    scene.physics.add.existing(this);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);
   }
 
   /**
@@ -78,6 +88,20 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
    */
   setLifespan(lifespan: number): void {
     this.lifespan = lifespan;
+  }
+
+  /**
+   * ダメージ量を取得
+   */
+  getDamage(): number {
+    return this.damage;
+  }
+
+  /**
+   * ダメージ量を設定
+   */
+  setDamage(damage: number): void {
+    this.damage = damage;
   }
 
   /**
@@ -148,6 +172,9 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
     }
     if (config.lifespan !== undefined) {
       this.lifespan = config.lifespan;
+    }
+    if (config.damage !== undefined) {
+      this.damage = config.damage;
     }
   }
 

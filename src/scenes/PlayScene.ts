@@ -23,6 +23,9 @@ export class PlayScene extends PlayableScene {
     // プレイヤーを作成（StartPositionに基づく）
     this.createPlayer();
 
+    // 敵を配置
+    this.createEnemies();
+
     // UIを作成
     this.createUI();
 
@@ -55,6 +58,28 @@ export class PlayScene extends PlayableScene {
       // PlayScene2の左端にスポーン
       this.transitionToScene('PlayScene2', 'left');
     }
+  }
+
+  /**
+   * 敵を配置
+   */
+  private createEnemies(): void {
+    const { width, height } = this.scale;
+
+    // 画面中央付近に複数の敵を配置
+    this.addEnemies([
+      { x: width * 0.6, y: height * 0.3 },
+      { x: width * 0.7, y: height * 0.5 },
+      { x: width * 0.6, y: height * 0.7 },
+    ]);
+
+    // 異なる設定の敵も追加（大きくて硬い敵）
+    this.addEnemy(width * 0.8, height * 0.5, {
+      width: 60,
+      height: 60,
+      color: 0xaa2222,
+      maxHp: 200,
+    });
   }
 
   /**
