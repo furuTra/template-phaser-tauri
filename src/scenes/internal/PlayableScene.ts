@@ -20,6 +20,7 @@ import { Core } from "@/scenes/internal/Core";
 import { TopDownController } from "@/components/gameplay/TopDownController";
 import { ShootingController, ShootingControllerConfig } from "@/components/gameplay/ShootingController";
 import { PlayerStatsGameplayComponent } from "@/components/gameplay/PlayerStatsGameplayComponent";
+import { TargetEffectGameplayComponent, TargetEffectConfig } from "@/components/gameplay/TargetEffectGameplayComponent";
 import { StatusBarUIComponent } from "@/components/ui/StatusBarUIComponent";
 import { WeaponSelectModalUIComponent, ShootingMode } from "@/components/ui/WeaponSelectModalUIComponent";
 
@@ -50,6 +51,10 @@ export interface PlayableSceneConfig {
   shootingConfig?: ShootingControllerConfig;
   /** プレイヤーステータスの設定 */
   playerStatsConfig?: PlayerStatsConfig;
+  /** ターゲットエフェクトを有効にするか（デフォルト: true） */
+  targetEffectEnabled?: boolean;
+  /** ターゲットエフェクトの設定 */
+  targetEffectConfig?: TargetEffectConfig;
 }
 
 /**
@@ -78,6 +83,9 @@ export abstract class PlayableScene extends Core {
 
   // Shooting
   protected shootingController?: ShootingController;
+
+  // Target Effect
+  protected targetEffect?: TargetEffectGameplayComponent;
 
   // UI
   protected weaponSelectModal?: WeaponSelectModalUIComponent;
@@ -126,6 +134,9 @@ export abstract class PlayableScene extends Core {
 
     // 射撃コントローラーを更新
     this.shootingController?.update(time, delta);
+
+    // ターゲットエフェクトを更新
+    this.targetEffect?.update(time, delta, this.player.x, this.player.y);
   }
 
   /**
@@ -193,6 +204,17 @@ export abstract class PlayableScene extends Core {
       this.shootingController = new ShootingController(this, this.player, {
         ...this.config.shootingConfig,
         playerStats: this.playerStats,
+      });
+    }
+
+    // ターゲットエフェクトを作成（有効な場合）
+    if (this.config.targetEffectEnabled !== false && this.config.shootingEnabled !== false) {
+      this.targetEffect = new TargetEffectGameplayComponent(this, {
+        offset: 40,
+        size: 14,
+        color: 0xff6666,
+        alpha: 0.7,
+        ...this.config.targetEffectConfig,
       });
     }
   }
@@ -340,6 +362,8 @@ export abstract class PlayableScene extends Core {
       // モーダル表示中は射撃を無効化
       this.shootingController?.setEnabled(false);
       this.playerController?.disable();
+      // ターゲットエフェクトも非表示
+      this.targetEffect?.hide();
     }
   }
 
@@ -359,6 +383,8 @@ export abstract class PlayableScene extends Core {
     // 射撃と移動を再有効化
     this.shootingController?.setEnabled(true);
     this.playerController?.enable();
+    // ターゲットエフェクトを再表示
+    this.targetEffect?.show();
   }
 
   /**
@@ -412,6 +438,8 @@ export abstract class PlayableScene extends Core {
     this.playerStats?.destroy();
     this.weaponSelectModal?.destroy();
     this.weaponSelectModal = undefined;
+    this.targetEffect?.destroy();
+    this.targetEffect = undefined;
     // sceneEventsのリスナーをすべて解除
     this.sceneEvents.removeAllListeners();
   }
