@@ -42,10 +42,21 @@ description: 再利用可能なコンポーネント実装の指示
 ### コーディング規約
 - TypeScript strict mode有効
 - エラーハンドリング必須
-- Phaser.GameObjects を継承したクラスであること
 - 複数シーンで使いまわし可能な設計とすること
 - 型定義は先頭でインポート
 - 絶対パス優先（@/エイリアス使用）
+
+### ゲームオブジェクトの継承規約
+
+#### gameplay コンポーネント（src/components/gameplay/）
+- **物理判定を持つオブジェクト**: `Phaser.Physics.Arcade.Sprite` を継承すること
+  - 弾、敵、プレイヤーなど、衝突判定が必要なオブジェクト
+  - テクスチャがない場合は動的に生成する
+- **データ管理クラス**: GameObjectを継承しない純粋なTypeScriptクラスとして実装可（例: PlayerStatsGameplayComponent）
+
+#### UI コンポーネント（src/components/ui/）
+- `Phaser.GameObjects.Container` を継承すること
+- 複数のUI要素をグループ化して管理する
 
 ## 例
 ```typescript
