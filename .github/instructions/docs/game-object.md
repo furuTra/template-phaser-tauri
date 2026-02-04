@@ -100,50 +100,85 @@
 - 各効果タイプ固有のパラメータ
 
 ### 弾（Bullet）
-弾の実装はPhaserのGameObjectを継承したクラス群（`src/components/gameplay/bullets/`）：
+弾の実装（`src/components/gameplay/`）：
 
 **弾の種類ID（BulletTypeId）**
 ```typescript
 type BulletTypeId = 'single' | 'triple' | 'spread' | 'rapid' | 'heavy';
 ```
 
-| ID | クラス | 特性 |
-|----|--------|------|
-| `single` | SingleBullet | 標準弾（16x8, 黄色, 速度500） |
-| `triple` | TripleBullet | 3方向発射パターン用 |
-| `spread` | SpreadBullet | 拡散発射パターン用（やや小さく短射程） |
-| `rapid` | RapidBullet | 連射用（12x6, シアン, 速度700） |
-| `heavy` | HeavyBullet | 重弾（24x12, オレンジ, 速度350, 貫通対応） |
+| ID | 特性 |
+|----|------|
+| `single` | 標準弾（16x8, 黄色, 速度500, ダメージ10） |
+| `triple` | 3方向発射パターン用（16x8, マゼンタ） |
+| `spread` | 拡散発射パターン用（14x7, 青, やや小さく短射程） |
+| `rapid` | 連射用（12x6, シアン, 速度700, ダメージ5） |
+| `heavy` | 重弾（24x12, オレンジ, 速度350, ダメージ25） |
 
 **弾の設定（BulletConfig）**
-- `width?`: 弾の幅
-- `height?`: 弾の高さ
-- `color?`: 弾の色（16進数）
-- `speed?`: 弾の速度
-- `lifespan?`: 弾の寿命（ミリ秒）
+- `speed?`: 弾の速度（デフォルト: 500）
+- `lifespan?`: 弾の寿命（ミリ秒、デフォルト: 2000）
+- `damage?`: ダメージ量（デフォルト: 10）
 
-**弾クラスの継承構造**
+**BulletGameObject型**
+Bulletで使用可能なGameObject型：
+```typescript
+type BulletGameObject = Phaser.GameObjects.GameObject & {
+  x: number;
+  y: number;
+  setPosition(x: number, y: number): unknown;
+  setRotation(radians: number): unknown;
+  setActive(value: boolean): unknown;
+  setVisible(value: boolean): unknown;
+};
 ```
-Bullet（基底クラス、Phaser.GameObjects.Rectangle継承）
-├── SingleBullet   - 標準弾
-├── TripleBullet   - 3方向用弾
-├── SpreadBullet   - 拡散用弾
-├── RapidBullet    - 連射用弾
-└── HeavyBullet    - 重弾（貫通機能追加）
+Rectangle, Arc, Sprite等が使用可能。
+
+**GameObjectFactory型**
+弾の形状を生成するファクトリ関数：
+```typescript
+type GameObjectFactory = (scene: Phaser.Scene, x: number, y: number) => BulletGameObject;
 ```
 
-**発射パターン（BulletTypeDefinition）**
-弾の種類定義には発射パターン情報を含む：
+**弾種定義（BulletTypeDefinition）**
+弾の種類定義には以下を含む：
+- `id`: 種類ID
+- `name`: 表示名
+- `description`: 説明
 - `shotCount`: 同時発射数
 - `spreadAngle?`: 拡散角度（度数）
+- `bulletConfig`: 弾の設定
+- `gameObjectFactory`: GameObject生成関数
+
+**弾の実装構造**
+```
+Bullet（基底クラス、外部GameObjectをラップ）
+└── 物理ボディの管理
+└── ライフサイクル管理
+
+BulletTypes.BULLET_TYPES[typeId].gameObjectFactory
+└── 各弾種の形状を定義（Rectangle, Arc等）
+```
 
 ### 弾プール（BulletPool）
-オブジェクトプールによる弾の再利用管理（`src/components/gameplay/BulletPool.ts`）：
+弾種ごとのサブプールによる弾の再利用管理（`src/components/gameplay/BulletPool.ts`）：
+
+**アーキテクチャ**
+- **マルチサブプール方式**: 弾種ごとに独立したサブプール（SubPool）を保持
+- **遅延初期化**: 発射時に初めてサブプールを作成（未使用の弾種はインスタンス化されない）
+- **LRU削除**: サブプール数が上限（デフォルト3）を超えると、最も古く使われたものを削除
 
 **設定（BulletPoolConfig）**
-- `maxBullets?`: プール内の最大弾数（デフォルト: 50）
-- `bulletConfig?`: 弾の設定
-- `bulletType?`: 使用する弾の種類（デフォルト: `'single'`）
+- `subPoolConfigs?`: 弾種ごとのサブプール設定
+- `defaultMaxBulletsPerType?`: 弾種ごとの最大弾数（デフォルト: 20）
+- `maxSubPools?`: 同時に保持するサブプールの最大数（デフォルト: 3）
+
+**サブプール設定（SubPoolConfig）**
+- `maxBullets?`: この弾種のプール内最大弾数（デフォルト: 20）
+
+**コールバック**
+- `setOnSubPoolCreated()`: サブプール作成時（衝突判定の動的設定用）
+- `setOnSubPoolDestroyed()`: サブプール削除時（衝突判定の解除用）
 
 **主要メソッド**
 - `fire()`: 単発発射
@@ -151,9 +186,10 @@ Bullet（基底クラス、Phaser.GameObjects.Rectangle継承）
 - `fireSpread()`: 拡散発射
 - `fireByType()`: 種類ID指定で発射
 - `fireWithWeapon()`: 武器設定で発射
+- `getActiveBullets()`: アクティブな弾を全取得
 
 ### 弾発射ファクトリ（BulletFireFactory）
-発射ロジックの一元管理（`src/components/gameplay/BulletFireFactory.ts`）：
+発射ロジックの一元管理（`src/components/gameplay/bullets/BulletFireFactory.ts`）：
 
 **静的メソッド**
 - `fireSingle()`: 単発発射
@@ -182,20 +218,20 @@ src/types/
 └── index.ts                  # 再エクスポート
 ```
 
+### src/components/gameplay/bullets/ ディレクトリ構成（弾関連実装）
+```
+src/components/gameplay/bullets/
+├── index.ts              # 再エクスポート
+├── Bullet.ts             # 弾クラス・BulletConfig・BulletGameObject型
+├── BulletTypes.ts        # BulletTypeId・BulletTypeDefinition・GameObjectFactory
+├── BulletPool.ts         # マルチサブプール・LRU管理
+└── BulletFireFactory.ts  # 発射ロジック
+```
+
 ### src/components/gameplay/ ディレクトリ構成（実装）
 ```
 src/components/gameplay/
-├── Bullet.ts                 # 弾基底クラス・BulletConfig
-├── BulletTypes.ts            # BulletTypeId・BulletTypeDefinition
-├── BulletFireFactory.ts      # 発射ロジック
-├── BulletPool.ts             # オブジェクトプール
-├── bullets/
-│   ├── index.ts              # 再エクスポート
-│   ├── SingleBullet.ts       # 標準弾
-│   ├── TripleBullet.ts       # 3方向弾
-│   ├── SpreadBullet.ts       # 拡散弾
-│   ├── RapidBullet.ts        # 連射弾
-│   └── HeavyBullet.ts        # 重弾
+├── bullets/                  # 弾関連（別途記載）
 ├── ShootingController.ts     # 射撃コントローラー
 └── ...
 ```
@@ -218,13 +254,19 @@ BaseWeapon（共通プロパティ）
 
 ### 弾系（実装クラス）
 ```
-Phaser.GameObjects.Rectangle
-  └─ Bullet（弾基底クラス）
-       ├─ SingleBullet（標準弾）
-       ├─ TripleBullet（3方向弾）
-       ├─ SpreadBullet（拡散弾）
-       ├─ RapidBullet（連射弾）
-       └─ HeavyBullet（重弾、貫通機能）
+Bullet（弾管理クラス）
+└── 外部から渡されたBulletGameObjectをラップ
+└── 物理ボディ(Arcade)の管理
+└── ライフサイクル（activate/deactivate）
+
+BulletTypes.BULLET_TYPES
+└── 各弾種のgameObjectFactory（形状定義）
+└── 各弾種のbulletConfig（速度・ダメージ等）
+
+BulletPool
+├── SubPool（single用）
+├── SubPool（triple用）
+└── ...（最大3個、LRU削除）
 ```
 
 ## プロパティ命名規則
@@ -360,26 +402,31 @@ export interface RangedWeapon extends BaseWeapon {
 }
 ```
 
-### 弾クラス実装
+### 弾種定義の追加例
 ```typescript
-// src/components/gameplay/bullets/HeavyBullet.ts
-export class HeavyBullet extends Bullet {
-  private pierceCount: number = 0;
-  private maxPierceCount: number = 3;
+// src/components/gameplay/BulletTypes.ts
+// 新しい弾種を追加する場合
 
-  constructor(scene: Phaser.Scene, x: number, y: number, config: BulletConfig = {}) {
-    super(scene, x, y, { ...HEAVY_BULLET_CONFIG, ...config });
-  }
+// 1. BulletTypeIdにIDを追加
+export type BulletTypeId = 'single' | 'triple' | 'spread' | 'rapid' | 'heavy' | 'laser';
 
-  pierce(): boolean {
-    this.pierceCount++;
-    if (this.pierceCount >= this.maxPierceCount) {
-      this.deactivate();
-      return false;
-    }
-    return true;
-  }
-}
+// 2. BULLET_TYPESに定義を追加
+export const BULLET_TYPES: Record<BulletTypeId, BulletTypeDefinition> = {
+  // ... 既存の定義
+  laser: {
+    id: 'laser',
+    name: 'レーザー',
+    description: '高速貫通レーザー',
+    shotCount: 1,
+    bulletConfig: {
+      speed: 1000,
+      lifespan: 1000,
+      damage: 15,
+    },
+    // gameObjectFactoryで形状を定義（Rectangle, Arc, Sprite等）
+    gameObjectFactory: (scene, x, y) => scene.add.rectangle(x, y, 30, 4, 0xff0000),
+  },
+};
 ```
 
 ### 弾プール使用例
@@ -387,12 +434,30 @@ export class HeavyBullet extends Bullet {
 // シーンでの使用
 export class PlayScene extends Phaser.Scene {
   private bulletPool!: BulletPool;
+  private bulletColliders: Map<BulletTypeId, Phaser.Physics.Arcade.Collider[]> = new Map();
 
   create(): void {
-    // 弾プールを作成（弾種指定可能）
+    // 弾プールを作成（遅延初期化方式）
     this.bulletPool = new BulletPool(this, {
-      maxBullets: 50,
-      bulletType: 'single',
+      maxSubPools: 3,  // 同時に保持するサブプール数（LRU削除）
+      defaultMaxBulletsPerType: 20,  // 各弾種の最大弾数
+    });
+
+    // サブプール作成時に衝突判定を設定
+    this.bulletPool.setOnSubPoolCreated((typeId, bullets) => {
+      const colliders: Phaser.Physics.Arcade.Collider[] = [];
+      bullets.forEach(bullet => {
+        const collider = this.physics.add.collider(bullet.gameObject, this.enemies, ...);
+        colliders.push(collider);
+      });
+      this.bulletColliders.set(typeId, colliders);
+    });
+
+    // サブプール削除時に衝突判定を解除
+    this.bulletPool.setOnSubPoolDestroyed((typeId) => {
+      const colliders = this.bulletColliders.get(typeId);
+      colliders?.forEach(c => c.destroy());
+      this.bulletColliders.delete(typeId);
     });
   }
 
@@ -402,10 +467,10 @@ export class PlayScene extends Phaser.Scene {
 
   // 発射例
   fireBullet(fromX: number, fromY: number, targetX: number, targetY: number): void {
-    // 単発発射
+    // 単発発射（'single'サブプールを遅延作成）
     this.bulletPool.fire(fromX, fromY, targetX, targetY);
     
-    // 種類指定で発射
+    // 種類指定で発射（指定のサブプールを遅延作成）
     this.bulletPool.fireByType('triple', fromX, fromY, targetX, targetY);
     
     // 武器設定で発射
@@ -418,7 +483,7 @@ export class PlayScene extends Phaser.Scene {
 ```typescript
 // src/scenes/internal/BattleScene.ts
 import type { Player, Enemy } from '@/types';
-import { BulletPool } from '@/components/gameplay/BulletPool';
+import { BulletPool } from '@/components/gameplay/bullets';
 import { ShootingController } from '@/components/gameplay/ShootingController';
 
 export class BattleScene extends Phaser.Scene {
