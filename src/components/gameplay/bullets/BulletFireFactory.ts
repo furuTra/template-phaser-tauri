@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
-import { Bullet, BulletConfig } from '@/components/gameplay/Bullet';
+import { Bullet, BulletConfig } from './Bullet';
 import {
   BulletTypeId,
   BULLET_TYPES,
   FireParams,
   FireResult,
-} from '@/components/gameplay/BulletTypes';
+} from './BulletTypes';
 import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
 
 /**
@@ -15,9 +15,6 @@ import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
  */
 export function createBulletConfigFromWeapon(weapon: RangedWeapon): BulletConfig {
   return {
-    width: weapon.bulletWidth,
-    height: weapon.bulletHeight,
-    color: weapon.bulletColor,
     speed: weapon.velocity.initialSpeed,
     lifespan: (weapon.range / weapon.velocity.initialSpeed) * 1000,
   };

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BulletPool, BulletPoolConfig } from '@/components/gameplay/BulletPool';
+import { BulletPool, BulletPoolConfig } from '@/components/gameplay/bullets';
 import { PlayerStatsGameplayComponent } from '@/components/gameplay/PlayerStatsGameplayComponent';
 import type { RangedWeapon } from '@/types/Weapon/RangedWeapon';
 import type { ShootingMode } from '@/components/ui/WeaponSelectModalUIComponent';
@@ -279,6 +279,6 @@ export class ShootingController {
    * コントローラーを破棄
    */
   destroy(): void {
-    this.bulletPool.destroy(true);
+    this.bulletPool.destroy();
   }
 }

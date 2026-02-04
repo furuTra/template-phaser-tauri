@@ -22,7 +22,7 @@ import { ShootingController, ShootingControllerConfig } from "@/components/gamep
 import { PlayerStatsGameplayComponent } from "@/components/gameplay/PlayerStatsGameplayComponent";
 import { TargetEffectGameplayComponent, TargetEffectConfig } from "@/components/gameplay/TargetEffectGameplayComponent";
 import { EnemyGameplayComponent } from "@/components/gameplay/EnemyGameplayComponent";
-import { Bullet } from "@/components/gameplay/Bullet";
+import { Bullet, BulletGameObject, BulletTypeId } from "@/components/gameplay/bullets";
 import { StatusBarUIComponent } from "@/components/ui/StatusBarUIComponent";
 import { WeaponSelectModalUIComponent, ShootingMode } from "@/components/ui/WeaponSelectModalUIComponent";
 
@@ -91,6 +91,9 @@ export abstract class PlayableScene extends Core {
 
   // Enemies
   protected enemies!: Phaser.Physics.Arcade.Group;
+
+  // 弾種別の衝突判定Collider管理（LRU削除時の解除用）
+  private bulletColliders: Map<BulletTypeId, Phaser.Physics.Arcade.Collider[]> = new Map();
 
   // UI
   protected weaponSelectModal?: WeaponSelectModalUIComponent;
@@ -465,34 +468,95 @@ export abstract class PlayableScene extends Core {
 
   /**
    * 弾と敵の衝突判定をセットアップ
+   * 遅延初期化対応：新しい弾種が作成されるたびに動的に衝突判定を追加
+   * LRU対応：サブプール削除時に衝突判定も解除
    */
   protected setupBulletEnemyCollision(): void {
     if (!this.shootingController) return;
 
     const bulletPool = this.shootingController.getBulletPool();
     
-    this.physics.add.overlap(
-      bulletPool,
-      this.enemies,
-      (bulletObj, enemyObj) => {
-        const bullet = bulletObj as Bullet;
-        const enemy = enemyObj as EnemyGameplayComponent;
+    // 新しいサブプールが作成されたときに衝突判定を設定するコールバック
+    bulletPool.setOnSubPoolCreated((typeId, bullets) => {
+      this.addBulletCollisionForBullets(typeId, bullets, bulletPool);
+    });
 
-        // 弾を非アクティブ化
-        bullet.deactivate();
+    // サブプールが削除されたときに衝突判定を解除するコールバック
+    bulletPool.setOnSubPoolDestroyed((typeId, _bullets) => {
+      this.removeBulletCollisionForType(typeId);
+    });
 
-        // 敵にダメージを与える（弾のダメージ量を取得）
-        const damage = bullet.getDamage?.() ?? 10;
-        enemy.takeDamage(damage);
-      },
-      // アクティブな弾と敵のみを処理
-      (bulletObj, enemyObj) => {
-        const bullet = bulletObj as Bullet;
-        const enemy = enemyObj as EnemyGameplayComponent;
-        return bullet.active && enemy.active;
-      },
-      this
-    );
+    // 既に初期化済みの弾に対しても衝突判定を設定
+    for (const typeId of bulletPool.getInitializedTypes()) {
+      const bullets = bulletPool.getBulletsByType(typeId);
+      if (bullets.length > 0) {
+        this.addBulletCollisionForBullets(typeId, bullets, bulletPool);
+      }
+    }
+  }
+
+  /**
+   * 指定した弾配列に対して衝突判定を設定
+   * @param typeId 弾の種類ID
+   * @param bullets 弾の配列
+   * @param bulletPool 弾プール（getBulletByGameObject用）
+   */
+  private addBulletCollisionForBullets(
+    typeId: BulletTypeId,
+    bullets: Bullet[],
+    bulletPool: ReturnType<ShootingController['getBulletPool']>
+  ): void {
+    const colliders: Phaser.Physics.Arcade.Collider[] = [];
+
+    bullets.forEach(bullet => {
+      const collider = this.physics.add.overlap(
+        // object1: 衝突判定対象1（弾のGameObject）
+        bullet.gameObject as Phaser.GameObjects.GameObject,
+        // object2: 衝突判定対象2（敵グループ）
+        this.enemies,
+        // collideCallback: 衝突時に実行される処理
+        (bulletGameObj, enemyObj) => {
+          const foundBullet = bulletPool.getBulletByGameObject(bulletGameObj as BulletGameObject);
+          const enemy = enemyObj as EnemyGameplayComponent;
+
+          if (!foundBullet) return;
+
+          // 弾を非アクティブ化
+          foundBullet.deactivate();
+
+          // 敵にダメージを与える（弾のダメージ量を取得）
+          const damage = foundBullet.getDamage?.() ?? 10;
+          enemy.takeDamage(damage);
+        },
+        // processCallback: 衝突を処理するかを判定する関数（falseを返すとcollideCallbackは実行されない）
+        (bulletGameObj, enemyObj) => {
+          const foundBullet = bulletPool.getBulletByGameObject(bulletGameObj as BulletGameObject);
+          const enemy = enemyObj as EnemyGameplayComponent;
+          return foundBullet?.active === true && enemy.active;
+        },
+        // callbackContext: コールバック内でのthisの参照先
+        this
+      );
+      colliders.push(collider);
+    });
+
+    // 弾種別にColliderを保存
+    this.bulletColliders.set(typeId, colliders);
+  }
+
+  /**
+   * 指定した弾種の衝突判定を解除
+   * @param typeId 弾の種類ID
+   */
+  private removeBulletCollisionForType(typeId: BulletTypeId): void {
+    const colliders = this.bulletColliders.get(typeId);
+    if (colliders) {
+      colliders.forEach(collider => {
+        collider.destroy();
+      });
+      this.bulletColliders.delete(typeId);
+      console.log(`[PlayableScene] Removed collision for '${typeId}'`);
+    }
   }
 
   /**

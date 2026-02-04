@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Button } from '@/components/ui/Button';
-import type { BulletTypeId } from '@/components/gameplay/BulletTypes';
+import type { BulletTypeId } from '@/components/gameplay/bullets';
 
 /**
  * 発射モードの定義

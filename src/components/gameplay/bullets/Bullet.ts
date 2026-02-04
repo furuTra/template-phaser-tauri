@@ -1,15 +1,21 @@
 import Phaser from 'phaser';
 
 /**
+ * Bulletで使用可能なGameObject型
+ */
+export type BulletGameObject = Phaser.GameObjects.GameObject & {
+  x: number;
+  y: number;
+  setPosition(x: number, y: number): unknown;
+  setRotation(radians: number): unknown;
+  setActive(value: boolean): unknown;
+  setVisible(value: boolean): unknown;
+};
+
+/**
  * 弾の設定
  */
 export interface BulletConfig {
-  /** 弾の幅（デフォルト: 16） */
-  width?: number;
-  /** 弾の高さ（デフォルト: 8） */
-  height?: number;
-  /** 弾の色（デフォルト: 0xffff00） */
-  color?: number;
   /** 弾の速度（デフォルト: 500） */
   speed?: number;
   /** 弾の寿命（ミリ秒、デフォルト: 2000） */
@@ -22,9 +28,6 @@ export interface BulletConfig {
  * デフォルトの弾設定
  */
 export const DEFAULT_BULLET_CONFIG: Required<BulletConfig> = {
-  width: 16,
-  height: 8,
-  color: 0xffff00,
   speed: 500,
   lifespan: 2000,
   damage: 10,
@@ -32,34 +35,76 @@ export const DEFAULT_BULLET_CONFIG: Required<BulletConfig> = {
 
 /**
  * 弾オブジェクト
- * Phaser.GameObjects.Rectangleを継承
+ * 外部から渡されたGameObjectに物理ボディを付与して管理
  */
-export class Bullet extends Phaser.GameObjects.Rectangle {
+export class Bullet {
+  readonly scene: Phaser.Scene;
+  readonly gameObject: BulletGameObject;
+
   private speed: number;
   private lifespan: number;
   private damage: number;
   private spawnTime: number = 0;
-  private velocityX: number = 0;
-  private velocityY: number = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, config: BulletConfig = {}) {
-    const width = config.width ?? DEFAULT_BULLET_CONFIG.width;
-    const height = config.height ?? DEFAULT_BULLET_CONFIG.height;
-    const color = config.color ?? DEFAULT_BULLET_CONFIG.color;
-
-    super(scene, x, y, width, height, color);
+  /**
+   * @param scene シーン
+   * @param gameObject 弾として使用するGameObject（Rectangle, Arc, Sprite等）
+   * @param config 弾の設定
+   */
+  constructor(scene: Phaser.Scene, gameObject: BulletGameObject, config: BulletConfig = {}) {
+    this.scene = scene;
+    this.gameObject = gameObject;
 
     this.speed = config.speed ?? DEFAULT_BULLET_CONFIG.speed;
     this.lifespan = config.lifespan ?? DEFAULT_BULLET_CONFIG.lifespan;
     this.damage = config.damage ?? DEFAULT_BULLET_CONFIG.damage;
 
-    // シーンに追加
-    scene.add.existing(this);
-
-    // 物理ボディを有効化
-    scene.physics.add.existing(this);
-    const body = this.body as Phaser.Physics.Arcade.Body;
+    // 物理ボディを追加
+    scene.physics.add.existing(gameObject);
+    const body = this.body;
     body.setAllowGravity(false);
+  }
+
+  /**
+   * 物理ボディを取得
+   */
+  get body(): Phaser.Physics.Arcade.Body {
+    return this.gameObject.body as Phaser.Physics.Arcade.Body;
+  }
+
+  /**
+   * X座標を取得
+   */
+  get x(): number {
+    return this.gameObject.x;
+  }
+
+  /**
+   * X座標を設定
+   */
+  set x(value: number) {
+    this.gameObject.x = value;
+  }
+
+  /**
+   * Y座標を取得
+   */
+  get y(): number {
+    return this.gameObject.y;
+  }
+
+  /**
+   * Y座標を設定
+   */
+  set y(value: number) {
+    this.gameObject.y = value;
+  }
+
+  /**
+   * アクティブ状態を取得
+   */
+  get active(): boolean {
+    return this.gameObject.active;
   }
 
   /**
@@ -105,6 +150,38 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
   }
 
   /**
+   * 位置を設定
+   */
+  setPosition(x: number, y: number): this {
+    this.gameObject.setPosition(x, y);
+    return this;
+  }
+
+  /**
+   * 回転を設定
+   */
+  setRotation(radians: number): this {
+    this.gameObject.setRotation(radians);
+    return this;
+  }
+
+  /**
+   * アクティブ状態を設定
+   */
+  setActive(value: boolean): this {
+    this.gameObject.setActive(value);
+    return this;
+  }
+
+  /**
+   * 表示状態を設定
+   */
+  setVisible(value: boolean): this {
+    this.gameObject.setVisible(value);
+    return this;
+  }
+
+  /**
    * 弾を発射（基本）
    * @param fromX 発射元X座標
    * @param fromY 発射元Y座標
@@ -118,11 +195,15 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
 
     // 方向ベクトルを計算
     const angle = Phaser.Math.Angle.Between(fromX, fromY, targetX, targetY);
-    this.velocityX = Math.cos(angle) * this.speed;
-    this.velocityY = Math.sin(angle) * this.speed;
 
     // 弾の向きを設定
     this.setRotation(angle);
+
+    // 物理ボディの速度を設定
+    this.body.setVelocity(
+      Math.cos(angle) * this.speed,
+      Math.sin(angle) * this.speed
+    );
 
     // 発射時間を記録
     this.spawnTime = this.scene.time.now;
@@ -139,10 +220,14 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
     this.setActive(true);
     this.setVisible(true);
 
-    this.velocityX = Math.cos(angle) * this.speed;
-    this.velocityY = Math.sin(angle) * this.speed;
-
     this.setRotation(angle);
+
+    // 物理ボディの速度を設定
+    this.body.setVelocity(
+      Math.cos(angle) * this.speed,
+      Math.sin(angle) * this.speed
+    );
+
     this.spawnTime = this.scene.time.now;
   }
 
@@ -153,6 +238,9 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
     this.setActive(false);
     this.setVisible(false);
     this.setPosition(-100, -100);
+
+    // 物理ボディの速度をリセット
+    this.body.setVelocity(0, 0);
   }
 
   /**
@@ -161,12 +249,6 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
    * @param config 弾の設定
    */
   applyConfig(config: BulletConfig): void {
-    if (config.width !== undefined || config.height !== undefined) {
-      this.setSize(config.width ?? this.width, config.height ?? this.height);
-    }
-    if (config.color !== undefined) {
-      this.setFillStyle(config.color);
-    }
     if (config.speed !== undefined) {
       this.speed = config.speed;
     }
@@ -181,14 +263,12 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
   /**
    * 更新処理
    * @param _time 現在時間
-   * @param delta デルタタイム（ミリ秒）
+   * @param _delta デルタタイム（ミリ秒）
    */
-  update(_time: number, delta: number): void {
+  update(_time: number, _delta: number): void {
     if (!this.active) return;
 
-    // 位置を更新
-    this.x += this.velocityX * (delta / 1000);
-    this.y += this.velocityY * (delta / 1000);
+    // 位置は物理エンジンが自動更新するため、手動更新は不要
 
     // 寿命チェック
     if (this.scene.time.now - this.spawnTime > this.lifespan) {
@@ -201,5 +281,12 @@ export class Bullet extends Phaser.GameObjects.Rectangle {
     if (this.x < -50 || this.x > width + 50 || this.y < -50 || this.y > height + 50) {
       this.deactivate();
     }
+  }
+
+  /**
+   * 破棄
+   */
+  destroy(): void {
+    this.gameObject.destroy();
   }
 }
